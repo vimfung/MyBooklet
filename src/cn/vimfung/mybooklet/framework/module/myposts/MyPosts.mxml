@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%"
+		  height="100%"
+		  implements="cn.vimfung.gnotes.kit.IApplicationInstance,cn.vimfung.mybooklet.framework.module.myposts.IMyPosts"
+		  creationComplete="myPostsCreateCompleteHandler(event)" 
+		  xmlns:ui="cn.vimfung.mybooklet.framework.ui.*" 
+		  xmlns:ui1="cn.vimfung.mybooklet.framework.module.myposts.ui.*">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.gnotes.kit.ISystemManager;
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
+			import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
+			import cn.vimfung.mybooklet.framework.module.myposts.command.ImportPostCommand;
+			import cn.vimfung.mybooklet.framework.module.myposts.events.ColorFilterEvent;
+			import cn.vimfung.mybooklet.framework.module.myposts.mediator.MyPostsMediator;
+			import cn.vimfung.mybooklet.framework.module.myposts.model.AttachmentInfo;
+			import cn.vimfung.mybooklet.framework.module.myposts.model.PostsRequestData;
+			import cn.vimfung.mybooklet.framework.module.myposts.model.SectionListDataProvider;
+			import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
+			import cn.vimfung.mybooklet.framework.module.myposts.proxy.MyPostsProxy;
+			import cn.vimfung.mybooklet.framework.module.myposts.ui.ImportPostWindow;
+			import cn.vimfung.mybooklet.framework.module.myposts.ui.PostInfoWindow;
+			import cn.vimfung.mybooklet.framework.module.myposts.ui.SectionList;
+			
+			import mx.controls.Alert;
+			import mx.controls.HTML;
+			import mx.controls.Menu;
+			import mx.core.FlexGlobals;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.MenuEvent;
+			import mx.managers.PopUpManager;
+			
+			import org.puremvc.as3.interfaces.IFacade;
+			
+			import spark.components.DataGrid;
+			import spark.events.GridSelectionEvent;
+			import spark.events.IndexChangeEvent;
+			import spark.events.TextOperationEvent;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			private var _myPostsMediator:MyPostsMediator = null;
+			private var _myPostsProxy:MyPostsProxy = null;
+			
+			/**
+			 * 获取文章列表视图 
+			 * @return 文章列表视图
+			 * 
+			 */	
+			public function get postListView():PostListView
+			{
+				return listView;
+			}
+			
+			/**
+			 * 获取内容视图 
+			 * @return 内容视图
+			 * 
+			 */	
+			public function get contentView():PostContentView
+			{
+				return postContentView;
+			}
+			
+			/**
+			 * 初始化应用时触发
+			 * @param systemManager 系统管理器
+			 * 
+			 */
+			public function onInitialize(systemManager:ISystemManager):void
+			{
+				
+			} 
+			
+			/**
+			 * 应用显示时触发 
+			 * @param systemManager 系统管理器
+			 * 
+			 */		
+			public function onOpen(systemManager:ISystemManager):void
+			{
+				_facade.registerCommand(PostNotification.BEGIN_IMPORT_URL_POST, ImportPostCommand);
+				
+				_myPostsProxy = new MyPostsProxy();
+				_facade.registerProxy(_myPostsProxy);
+				
+				_myPostsMediator = new MyPostsMediator(this);
+				_facade.registerMediator(_myPostsMediator);
+			} 
+			
+			/**
+			 * 应用关闭时触发 
+			 * 
+			 */		
+			public function onClose():void
+			{
+				_facade.removeCommand(PostNotification.BEGIN_IMPORT_URL_POST);
+				_facade.removeMediator(MyPostsMediator.NAME);
+				_facade.removeProxy(MyPostsProxy.NAME);
+			} 
+			
+			/**
+			 * 我的文章模块创建完成
+			 * @param event 事件
+			 * */
+			protected function myPostsCreateCompleteHandler(event:FlexEvent):void
+			{
+				//刷新列表
+				var notification:PostNotification = new PostNotification(PostNotification.BEGIN_REFRESH_LIST);
+				_facade.postNotification(notification);
+			}
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5"/>
+	</s:layout>
+	<ui1:PostListView id="listView" />
+	<ui1:PostContentView id="postContentView" />
+</s:Module>

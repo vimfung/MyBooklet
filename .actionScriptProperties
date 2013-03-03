@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<actionScriptProperties analytics="false" mainApplicationPath="MyBooklet.mxml" projectUUID="4c276921-46d2-44b5-93df-2cb4c456a82f" version="10">
+  <compiler additionalCompilerArguments="-locale en_US" autoRSLOrdering="true" copyDependentFiles="true" fteInMXComponents="false" generateAccessible="true" htmlExpressInstall="true" htmlGenerate="false" htmlHistoryManagement="false" htmlPlayerVersionCheck="true" includeNetmonSwc="false" outputFolderPath="bin-debug" removeUnusedRSL="true" sourceFolderPath="src" strict="true" targetPlayerVersion="0.0.0" useApolloConfig="true" useDebugRSLSwfs="true" verifyDigests="true" warn="true">
+    <compilerSourcePath/>
+    <libraryPath defaultLinkType="0">
+      <libraryPathEntry kind="4" path="">
+        <excludedEntries>
+          <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/flex.swc" useDefaultLinkType="false"/>
+          <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/core.swc" useDefaultLinkType="false"/>
+        </excludedEntries>
+      </libraryPathEntry>
+      <libraryPathEntry kind="1" linkType="1" path="libs"/>
+    </libraryPath>
+    <sourceAttachmentPath/>
+  </compiler>
+  <applications>
+    <application path="MyBooklet.mxml">
+      <airExcludes/>
+    </application>
+  </applications>
+  <modules>
+    <module application="src/MyBooklet.mxml" destPath="cn/vimfung/mybooklet/framework/module/myposts/MyPosts.swf" optimize="true" sourcePath="src/cn/vimfung/mybooklet/framework/module/myposts/MyPosts.mxml"/>
+    <module application="src/MyBooklet.mxml" destPath="cn/vimfung/mybooklet/framework/module/setting/Setting.swf" optimize="true" sourcePath="src/cn/vimfung/mybooklet/framework/module/setting/Setting.mxml"/>
+  </modules>
+  <buildCSSFiles/>
+  <flashCatalyst validateFlashCatalystCompatibility="false"/>
+  <buildTargets>
+    <buildTarget buildTargetName="default">
+      <airSettings airCertificatePath="G:/我的文档/vimfung.p12" airTimestamp="true" version="1">
+        <airExcludes>
+          <pathEntry path="assets/fonts"/>
+        </airExcludes>
+      </airSettings>
+      <actionScriptSettings version="1"/>
+    </buildTarget>
+  </buildTargets>
+</actionScriptProperties>

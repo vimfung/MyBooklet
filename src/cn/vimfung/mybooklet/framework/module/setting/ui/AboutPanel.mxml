@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" label="关于GNotes">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import air.update.ApplicationUpdater;
+			import air.update.ApplicationUpdaterUI;
+			
+			import mx.events.FlexEvent;
+			
+			/**
+			 * 关于面板创建成功 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function aboutPanelCreateCompleteHandler(event:FlexEvent):void
+			{
+				var appUpdateUI:ApplicationUpdaterUI = new ApplicationUpdaterUI();
+				verLabel.text = "版本: " + appUpdateUI.currentVersion;
+			}
+			
+			/**
+			 * 邮箱联系按钮点击 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function mailButtonClickHandler(event:MouseEvent):void
+			{
+				var request:URLRequest = new URLRequest("mailto:vimfung@gmail.com");
+				navigateToURL(request, "_blank");
+			}
+			
+			/**
+			 * QQ联系按钮点击 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function qqButtonClickHandler(event:MouseEvent):void
+			{
+				var request:URLRequest = new URLRequest("http://wpa.qq.com/msgrd?V=1&Uin=867844038&Menu=no");
+				navigateToURL(request, "_self");
+			}
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" 
+			  height="100%" 
+			  horizontalAlign="center" 
+			  verticalAlign="middle" 
+			  creationComplete="aboutPanelCreateCompleteHandler(event)" 
+			  fontFamily="Lantingqianhei">
+		<s:Image source="assets/gnote/icon_114.png" />
+		<s:HGroup>
+			<s:Label text="MyBooklet" />
+			<s:Label id="verLabel" />
+		</s:HGroup>
+		<s:Label text="作者: vimfung" />
+		<s:Button label="邮箱联系" width="120" height="25" click="mailButtonClickHandler(event)" />
+		<s:Button label="QQ联系"  width="120" height="25" click="qqButtonClickHandler(event)" />
+	</s:VGroup>
+</mx:Canvas>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HTML xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 borderVisible="false"
+		 creationComplete="contentEditorCreateCompleteHandler(event)"
+		 complete="editorContainerCompleteHandler(event)" >
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			private var _ckeditor:Object = null;
+			private var _htmlText:String;
+			
+			/**
+			 * 获取HTML内容
+			 * 
+			 * @return HTML内容
+			 * */
+			public override function get htmlText():String
+			{
+				if(_ckeditor != null)
+				{
+					_htmlText = _ckeditor.instances.editor.getData();
+				}
+				return _htmlText;
+			}
+
+			/**
+			 * 设置HTML内容
+			 * 
+			 * @param	value	html内容
+			 * */
+			public override function set htmlText(value:String):void
+			{
+				_htmlText = value;
+				if (_ckeditor != null)
+				{
+					_ckeditor.instances.editor.setData(_htmlText);
+				}
+			}
+
+			/**
+			 * 内容编辑器构造完成
+			 * */
+			protected function contentEditorCreateCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				 var file:File = File.applicationDirectory.resolvePath("assets/editor/editor.html");
+				this.location = file.nativePath; 
+			}
+			
+			/**
+			 * 编辑容器加载成功通知
+			 * 
+			 * @param	event	事件
+			 * */
+			protected function editorContainerCompleteHandler(event:Event):void
+			{
+				//初始化CKEditor对象
+				_ckeditor = this.htmlLoader.window.CKEDITOR;
+				this.htmlText = _htmlText;
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+</mx:HTML>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   width="234"
+				   height="84"
+				   borderColor="#E3E3E3" 
+				   backgroundColor="#F5F5F5">
+	<s:layout>
+		<s:TileLayout paddingLeft="6" paddingTop="5" columnWidth="32" rowHeight="32"/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.module.myposts.events.ColorFilterEvent;
+			
+			/**
+			 * 子项点击
+			 * 
+			 * @param event 事件
+			 * */
+			private function itemClickHandler(event:MouseEvent):void
+			{
+				var item:BorderContainer = event.currentTarget as BorderContainer;
+				if(item != null)
+				{
+					var e:ColorFilterEvent = new ColorFilterEvent(ColorFilterEvent.COLOR_CHANGE);
+					e.color = item.getStyle("backgroundColor");
+					this.dispatchEvent(e);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:BorderContainer backgroundColor="0xffffff" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0xFF1D0B" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0x999999" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0x00AE00" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0x006699" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0xFFD042" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0xDF02D5" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0xBF1C2C" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0x069BFF" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0xFFA826" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0x99CC33" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+	<s:BorderContainer backgroundColor="0xFF51FF" borderVisible="false" width="32" height="32" mouseDown="itemClickHandler(event)" />
+</s:BorderContainer>

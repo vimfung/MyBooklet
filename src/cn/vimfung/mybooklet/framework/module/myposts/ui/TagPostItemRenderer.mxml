@@ -1,0 +1,444 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				width="100%" 
+				height="82" 
+				autoDrawBackground="true"
+				creationComplete="dataChangeHandler(event)" 
+				dataChange="dataChangeHandler(event)"
+				rollOut="rollOutHandler(event)" 
+				rollOver="rollOverHandler(event)" xmlns:ui="cn.vimfung.mybooklet.framework.module.myposts.ui.*">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.module.myposts.PostToken;
+			import cn.vimfung.mybooklet.framework.module.myposts.events.ColorFilterEvent;
+			import cn.vimfung.mybooklet.framework.module.myposts.events.PostEvent;
+			import cn.vimfung.mybooklet.framework.module.myposts.mediator.MyPostsMediator;
+			import cn.vimfung.mybooklet.framework.module.myposts.model.SectionListIndexPath;
+			import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
+			import cn.vimfung.mybooklet.framework.module.myposts.proxy.MyPostsProxy;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.EffectEvent;
+			import mx.events.FlexEvent;
+			
+			import spark.effects.easing.Power;
+			import spark.effects.easing.Sine;
+			import spark.utils.TextFlowUtil;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			private var _myPostsProxy:MyPostsProxy = _facade.retrieveProxy(MyPostsProxy.NAME) as MyPostsProxy;
+			private var _myPostsMediator:MyPostsMediator = _facade.retrieveMediator(MyPostsMediator.NAME) as MyPostsMediator;
+			
+			private var _colorPanel:ColorPickerPanel = null;
+			private var _indexPath:SectionListIndexPath;
+			
+			/**
+			 * 获取索引
+			 * 
+			 * @return 索引
+			 * */
+			public function get indexPath():SectionListIndexPath
+			{
+				return _indexPath;
+			}
+			
+			/**
+			 * 设置索引
+			 * 
+			 * @param 索引
+			 * */
+			public function set indexPath(value:SectionListIndexPath):void
+			{
+				_indexPath = value;
+			}
+			
+			/**
+			 * 获取创建时间 
+			 * @param date 时间
+			 * @return 时间字符串
+			 * 
+			 */
+			private function getCreateTimeString(date:Date):String
+			{
+				if(date != null)
+				{
+					return date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes();
+				}
+				
+				return "";
+			}
+			
+			/**
+			 * 数据变更处理器 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function dataChangeHandler(event:FlexEvent):void
+			{
+				if (this.initialized && this.data != null)
+				{
+					this.labTitle.textFlow = TextFlowUtil.importFromString(this.data.title);
+					this.labCreateTime.text = getCreateTimeString(this.data.modifyTime);
+				}
+			}
+			
+			/**
+			 * 编辑文章按钮点击事件 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function editPostButtonClickHandler(event:MouseEvent):void
+			{
+				var dlg:IFlexDisplayObject = _facade.popup(PostInfoWindow, true);
+				dlg.width = FlexGlobals.topLevelApplication.width;
+				dlg.height = FlexGlobals.topLevelApplication.height;
+				(dlg as PostInfoWindow).editPost(this.data.id);
+				(dlg as PostInfoWindow).addEventListener(CloseEvent.CLOSE,editPostWindowCloseHandler);
+			}
+			
+			/**
+			 * 删除文章按钮点击事件 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function deletePostButtonClickHandler(event:MouseEvent):void
+			{
+				Alert.show("是否删除该文章?", "提示", Alert.OK | Alert.CANCEL, null, deletePostDialogCloseHandler);
+			}
+			
+			/**
+			 * 删除文章提示框关闭事件 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function deletePostDialogCloseHandler(event:CloseEvent):void
+			{
+				if(event.detail == Alert.OK)
+				{
+					//删除文章
+					_myPostsMediator.removePostInfo(this.data);
+				}
+			}
+			
+			/**
+			 * 编辑文章窗口关闭 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function editPostWindowCloseHandler(event:CloseEvent):void
+			{
+				var window:PostInfoWindow = event.target as PostInfoWindow;
+				if(event.detail == Alert.OK)
+				{
+					//派发更新文件通知
+					var postInfo:Object = new Object();
+					postInfo.id = this.data.id;
+					postInfo.title = window.tiTitle.text;
+					postInfo.tags = window.tiTags.text;
+					postInfo.content = window.rteConnect.htmlText;
+					postInfo.modifyTime = new Date();
+					
+					var notif:PostNotification = new PostNotification(PostNotification.UPDATE_POST, postInfo);
+					_facade.postNotification(notif);
+					
+					//派发开始刷新列表通知
+					var notification:PostNotification = new PostNotification(PostNotification.BEGIN_REFRESH_LIST, postInfo, "update");
+					_facade.postNotification(notification);
+				}
+				_facade.removePopup(event.target as IFlexDisplayObject);
+			}
+			
+			/**
+			 * 导出文章按钮点击
+			 * @param event 事件对象
+			 * */
+			private function exportPostButtonClickHandler(event:MouseEvent):void
+			{
+				var dlg:IFlexDisplayObject = _facade.popup(ExportPostWindow, true);
+				(dlg as ExportPostWindow).initWithPostInfo(this.data);
+				dlg.addEventListener(CloseEvent.CLOSE, exportPostDlgCloseHandler);
+			}
+			
+			/**
+			 * 导出文章对话关闭
+			 * @param event 事件
+			 * */
+			private function exportPostDlgCloseHandler(event:CloseEvent):void
+			{
+				event.target.removeEventListener(CloseEvent.CLOSE, exportPostDlgCloseHandler);
+				
+				_facade.removePopup(event.target as IFlexDisplayObject);
+				
+				if(event.detail == Alert.OK)
+				{
+					//导出
+					var exportDlg:ExportPostWindow = event.target as ExportPostWindow;
+					var token:PostToken = _myPostsProxy.export(this.data.id, exportDlg.exportFile, exportDlg.exportType);
+					token.addEventListener(PostEvent.EXPORT_RESULT, exportResultHandler);
+					token.addEventListener(PostEvent.EXPORT_ERROR, exportErrorHandler);
+					token.start();
+				}
+			}
+			
+			/**
+			 * 导出文件返回
+			 * @param event 事件
+			 * */
+			private function exportResultHandler(event:PostEvent):void
+			{
+				event.target.removeEventListener(PostEvent.EXPORT_RESULT, exportResultHandler);
+				event.target.removeEventListener(PostEvent.EXPORT_ERROR, exportErrorHandler);
+				
+				_facade.alert("导出成功!");
+			}
+			
+			private function exportErrorHandler(event:PostEvent):void
+			{
+				event.target.removeEventListener(PostEvent.EXPORT_RESULT, exportResultHandler);
+				event.target.removeEventListener(PostEvent.EXPORT_ERROR, exportErrorHandler);
+				
+				_facade.alert("导出时发生异常:" + event.error.message);
+			}
+			
+			/**
+			 * 鼠标移入 
+			 * @param event 事件
+			 * 
+			 */
+			private function rollOverHandler(event:MouseEvent):void
+			{
+				this.currentState = "RollOver";
+			}
+			
+			/**
+			 * 鼠标移出 
+			 * @param event 事件
+			 * 
+			 */
+			private function rollOutHandler(event:MouseEvent):void
+			{
+				this.currentState = "Normal";
+			}
+			
+			/**
+			 * 颜色标记按钮点击
+			 * 
+			 * @param event 事件
+			 * */
+			private function colorSetButtonClickHandler(event:MouseEvent):void
+			{
+				if (_colorPanel == null)
+				{
+					_colorPanel = new ColorPickerPanel();
+					_colorPanel.x = this.width;
+					_colorPanel.height = this.height;
+					_colorPanel.setStyle("borderVisible",false);
+					_colorPanel.addEventListener(ColorFilterEvent.COLOR_CHANGE, colorChangeHandler);
+					this.addElement(_colorPanel);
+				}
+				
+				contentViewMove.xTo = (this.width - _colorPanel.width) - contentView.width;
+				contentViewMove.play([contentView]);
+				colorPanelMove.xTo = this.width - _colorPanel.width;
+				colorPanelMove.play([_colorPanel]);
+				
+				this.stage.addEventListener(MouseEvent.MOUSE_DOWN, stageMouseDownHandler);
+				this.stage.addEventListener(MouseEvent.MOUSE_WHEEL, stageMouseWheelHandler);
+			}
+			
+			/**
+			 * 场景鼠标按下
+			 * 
+			 * @param 事件
+			 * */
+			private function stageMouseDownHandler(event:MouseEvent):void
+			{
+				event.currentTarget.removeEventListener(MouseEvent.MOUSE_DOWN, stageMouseDownHandler);
+				event.currentTarget.removeEventListener(MouseEvent.MOUSE_WHEEL, stageMouseDownHandler);
+				
+				contentViewMove.xTo = 0.0;
+				contentViewMove.play([contentView]);
+				
+				if(_colorPanel != null)
+				{
+					colorPanelMove.addEventListener(EffectEvent.EFFECT_STOP, colorPanelStopAnimationHandler);
+					colorPanelMove.xTo = this.width;
+					colorPanelMove.play([_colorPanel]);
+				}
+			}
+			
+			/**
+			 * 场景鼠标滚动
+			 * 
+			 * @param 事件
+			 * */
+			private function stageMouseWheelHandler(event:MouseEvent):void
+			{
+				event.currentTarget.removeEventListener(MouseEvent.MOUSE_DOWN, stageMouseDownHandler);
+				event.currentTarget.removeEventListener(MouseEvent.MOUSE_WHEEL, stageMouseDownHandler);
+				
+				//由于滚动速度较快，因此可以直接取消，不实现动画
+				contentView.x = 0;
+				if(_colorPanel && this.containsElement(_colorPanel))
+				{
+					this.removeElement(_colorPanel);
+					_colorPanel = null;
+				}
+			}
+			
+			/**
+			 * 颜色面板移动结束
+			 * 
+			 * @param event 事件
+			 * */
+			private function colorPanelStopAnimationHandler(event:EffectEvent):void
+			{
+				event.target.removeEventListener(EffectEvent.EFFECT_STOP, colorPanelStopAnimationHandler);
+				
+				if(_colorPanel && this.containsElement(_colorPanel))
+				{
+					this.removeElement(_colorPanel);
+					_colorPanel = null;
+				}
+			}
+			
+			/**
+			 * 设置标记颜色
+			 * 
+			 * @param event 事件
+			 * */
+			private function colorChangeHandler(event:ColorFilterEvent):void
+			{
+				this.data.color = event.color;
+				this.invalidateDisplayList();
+				
+				//更新文章标记颜色
+				var token:PostToken = _myPostsProxy.maskColor(this.data.id, this.data.color);
+				token.addEventListener(PostEvent.MASK_COLOR_RESULT, maskColorResultHandler);
+				token.addEventListener(PostEvent.MASK_COLOR_ERROR, maskColorErrorHandler);
+				token.start();
+			}
+			
+			/**
+			 * 标记颜色返回
+			 * 
+			 * @param event 事件
+			 * */
+			private function maskColorResultHandler(event:PostEvent):void
+			{
+				event.target.removeEventListener(PostEvent.MASK_COLOR_RESULT, maskColorResultHandler);
+				event.target.removeEventListener(PostEvent.MASK_COLOR_ERROR, maskColorErrorHandler);
+			}
+			
+			/**
+			 * 标记颜色错误
+			 * 
+			 * @param event 事件
+			 * */
+			private function maskColorErrorHandler(event:PostEvent):void
+			{
+				event.target.removeEventListener(PostEvent.MASK_COLOR_RESULT, maskColorResultHandler);
+				event.target.removeEventListener(PostEvent.MASK_COLOR_ERROR, maskColorErrorHandler);
+				
+				_facade.alert("标记颜色出错了!" + event.error.message);
+			}
+			
+			/**
+			 * @inheritDoc
+			 * */
+			override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				
+				if(this.data != null)
+				{
+					var color:uint = 0xffffff;
+					if(this.data.color != null && this.data.color != -1)
+					{
+						color = this.data.color;
+					}
+					bgView.fill = new SolidColor(color);
+					if(color == 0xffffff)
+					{
+						labTitle.setStyle("color",0x000000);
+						labCreateTime.setStyle("color", 0x666666);
+						if(editButton != null)
+						{
+							editButton.setStyle("color", 0x666666);
+						}
+						if(exportButton != null)
+						{
+							exportButton.setStyle("color", 0x666666);
+						}
+						if(delButton != null)
+						{
+							delButton.setStyle("color", 0x666666);
+						}
+					}
+					else
+					{
+						labTitle.setStyle("color",0xffffff);
+						labCreateTime.setStyle("color", 0xffffff);
+						if(editButton != null)
+						{
+							editButton.setStyle("color", 0xffffff);
+						}
+						if(exportButton != null)
+						{
+							exportButton.setStyle("color", 0xffffff);
+						}
+						if(delButton != null)
+						{
+							delButton.setStyle("color", 0xffffff);
+						}
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:Move id="contentViewMove" duration="300" easer="{new Power()}"/>
+		<s:Move id="colorPanelMove" duration="300" easer="{new Power()}"/>
+	</fx:Declarations>
+	<s:states>
+		<s:State name="Normal"/>
+		<s:State name="RollOver"/>
+	</s:states>
+	<s:Rect id="bgView" width="100%" height="100%">
+		<s:fill>
+			<s:SolidColor color="0xffffff"/>
+		</s:fill>
+	</s:Rect>
+	<s:VGroup id="contentView" width="100%" height="100%" gap="0" paddingBottom="0" paddingLeft="7"
+			  paddingRight="7" paddingTop="7" verticalAlign="top">
+		<s:RichText id="labTitle" width="100%" height="100%" fontSize="12" lineBreak="toFit"
+					maxDisplayedLines="3" verticalAlign="top"/>
+		<s:Spacer height="10"/>
+		<s:HGroup width="100%" verticalAlign="bottom">
+			<s:Label id="labCreateTime" color="0x666666" fontSize="12"/>
+			<s:Spacer width="100%"/>
+			<s:Button id="exportButton" includeIn="RollOver" label="[导出]"
+					  click="exportPostButtonClickHandler(event)" color="0x666666" fontSize="12"
+					  skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.LinkButtonSkin"/>
+			<s:Button id="editButton" includeIn="RollOver" label="[编辑]"
+					  click="editPostButtonClickHandler(event)" color="0x666666" fontSize="12"
+					  skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.LinkButtonSkin"/>
+			<s:Button id="delButton" includeIn="RollOver" label="[删除]"
+					  click="deletePostButtonClickHandler(event)" color="0x666666" fontSize="12"
+					  skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.LinkButtonSkin"/>
+			<ui:ColorPickerButton includeIn="RollOver" width="12" height="12"
+								  click="colorSetButtonClickHandler(event)"/>
+		</s:HGroup> 
+		<s:Spacer height="7"/>
+		<s:Image width="100%" height="1" source="assets/gnote/post_line.png"/>
+	</s:VGroup>
+</s:ItemRenderer>

@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="330" 
+		  height="100%" 
+		  fontFamily="Lantingqianhei" 
+		  fontSize="12" 
+		  stateChangeComplete="postListStateChangeCompleteHandler(event)"
+		  xmlns:ui="cn.vimfung.mybooklet.framework.module.myposts.ui.*">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
+			import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
+			import cn.vimfung.mybooklet.framework.module.myposts.events.ColorFilterEvent;
+			import cn.vimfung.mybooklet.framework.module.myposts.mediator.MyPostsMediator;
+			import cn.vimfung.mybooklet.framework.module.myposts.model.PostsRequestData;
+			import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
+			
+			import mx.controls.Alert;
+			import mx.controls.Menu;
+			import mx.core.FlexGlobals;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.MenuEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			private var _myPostsMediator:MyPostsMediator = null;
+			private var _keywordString:String = "";
+			private var _isSearchEnabled:Boolean = false;
+			private var _color:uint = 0xffffff;
+			private var _addPostExMenu:Menu;
+			
+			/**
+			 * 搜索框取得焦点 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function searchInputFocusInHandler(event:FocusEvent):void
+			{
+				if(_keywordString == null || _keywordString == "")
+				{
+					searchInput.text = "";
+					searchInput.setStyle("color",0x666666);
+				}
+			}
+			
+			/**
+			 * 搜索框失去焦点 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function searchInputFocusOutHandler(event:FocusEvent):void
+			{
+				if(_keywordString == null || _keywordString == "")
+				{
+					searchInput.text = "输入搜索关键字";
+					searchInput.setStyle("color",0xcccccc);
+				}
+			}
+			
+			/**
+			 * 搜索框输入文本变更 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function searchInputChangeHandler(event:Event):void
+			{
+				_keywordString = searchInput.text;
+				//延迟1秒进行搜索
+				if (!_isSearchEnabled)
+				{
+					_isSearchEnabled = true;
+					setTimeout(searchContentHandler,1);
+				}
+			}
+			
+			/**
+			 * 执行内容搜索 
+			 * 
+			 */
+			private function searchContentHandler():void
+			{
+				if (this.currentState == "Tag")
+				{
+					this.currentState = "Latest";
+				}
+				
+				//搜索匹配标签
+				if(_keywordString != null)
+				{
+					var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT name FROM notes_tag WHERE name like '%" + _keywordString + "%' OR pinyin like '%" + _keywordString + "%' OR fpinyin like '%" + _keywordString + "%' GROUP BY name LIMIT 0,100");
+					token.addEventListener(SqliteDatabaseEvent.RESULT, searchTagListResultHandler);
+					token.addEventListener(SqliteDatabaseEvent.ERROR, searchTagListErrorHandler);
+					token.start();
+				}
+				
+				//搜索匹配文章
+				var requestData:PostsRequestData = new PostsRequestData();
+				requestData.keyword = _keywordString;
+				requestData.page = 0;
+				requestData.color = _color;
+				var notification:PostNotification = new PostNotification(PostNotification.BEGIN_REFRESH_LIST, requestData);
+				_facade.postNotification(notification);
+				
+				_isSearchEnabled = false;
+			}
+			
+			/**
+			 * 备选标签项变更
+			 * @param event 事件
+			 * */
+			protected function searchInputItemChangeHandler(event:IndexChangeEvent):void
+			{
+				_keywordString = searchInput.text;
+				
+				if(!_isSearchEnabled)
+				{
+					//搜索匹配文章
+					_isSearchEnabled = true;
+					setTimeout(searchContentHandler,1);
+				}
+			}
+			
+			/**
+			 * 筛选颜色变更
+			 * 
+			 * @param event 事件
+			 * */
+			protected function filterColorChangeHandler(event:ColorFilterEvent):void
+			{
+				_color = event.color;
+				
+				if(!_isSearchEnabled)
+				{
+					//搜索匹配文章
+					_isSearchEnabled = true;
+					setTimeout(searchContentHandler,1);
+				}
+			}
+			
+			/**
+			 * 搜索标签列表返回
+			 * @param event 事件
+			 * */
+			private function searchTagListResultHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, searchTagListResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.ERROR, searchTagListErrorHandler);
+				
+				searchInput.dataProvider.removeAll();
+				if(event.recordset != null)
+				{
+					for (var i:int = 0; i < event.recordset.length; i++)
+					{
+						searchInput.dataProvider.addItem(event.recordset[i].name);
+					}
+				}
+			}
+			
+			/**
+			 * 搜索标签列表失败
+			 * @param event 事件
+			 * */
+			private function searchTagListErrorHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, searchTagListResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.ERROR, searchTagListErrorHandler);
+			}
+			
+			/**
+			 * 添加文章点击按钮 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function addButtonClickHandler(event:MouseEvent):void
+			{
+				var dlg:IFlexDisplayObject = _facade.popup(PostInfoWindow, true);
+				dlg.width = FlexGlobals.topLevelApplication.width;
+				dlg.height = FlexGlobals.topLevelApplication.height;
+				(dlg as PostInfoWindow).title = "添加文章";
+				(dlg as PostInfoWindow).addEventListener(CloseEvent.CLOSE,addNoteWindowCloseHandler);
+			}
+			
+			/**
+			 * 关闭添加文章窗口事件
+			 * @param event 事件对象
+			 * 
+			 */
+			private function addNoteWindowCloseHandler(event:CloseEvent):void
+			{
+				_facade.removePopup(event.target as IFlexDisplayObject);
+			}
+			
+			/**
+			 * 添加文章扩展按钮点击
+			 * @param event 事件
+			 * */
+			protected function addPostExButtonClickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(_addPostExMenu == null)
+				{
+					_addPostExMenu = Menu.createMenu(addPostExButon,[{label:"导入文章..."}]);
+					_addPostExMenu.addEventListener(MenuEvent.ITEM_CLICK,addPostMenuItemClickHandler);
+					_addPostExMenu.setStyle("dropShadowVisible", false);
+					_addPostExMenu.setStyle("borderColor",0xE3E3E3);
+					_addPostExMenu.setStyle("selectionColor",0xF9F7F8);
+					_addPostExMenu.setStyle("rollOverColor", 0xF9F7F8);
+					_addPostExMenu.setStyle("color",0x666666);
+				}
+				
+				
+				var point:Point = addPostButton.localToGlobal(new Point(0,0));
+				_addPostExMenu.show(point.x, point.y + addPostButton.height);
+			}
+			
+			/**
+			 * 添加文章菜单点击
+			 * */
+			private function addPostMenuItemClickHandler(event:MenuEvent):void
+			{
+				var dlg:IFlexDisplayObject = null;
+				switch(event.index){
+					case 0:
+						//导入
+						dlg = _facade.popup(ImportPostWindow,true);
+						dlg.addEventListener(CloseEvent.CLOSE, importDlgCloseHandler);
+						break;
+				}
+			}
+			
+			/**
+			 * 导入对话框关闭
+			 * @param event 事件
+			 * */
+			private function importDlgCloseHandler(event:CloseEvent):void
+			{
+				event.target.removeEventListener(CloseEvent.CLOSE,importDlgCloseHandler);
+				if(event.detail == Alert.OK)
+				{
+					var dlg:IFlexDisplayObject = _facade.popup(PostInfoWindow,true);
+					dlg.width = FlexGlobals.topLevelApplication.width;
+					dlg.height = FlexGlobals.topLevelApplication.height;
+					(dlg as PostInfoWindow).title = "导入文章";
+					(dlg as PostInfoWindow).importPost((event.target as ImportPostWindow).source);
+					(dlg as PostInfoWindow).addEventListener(CloseEvent.CLOSE,addNoteWindowCloseHandler);
+				}
+				_facade.removePopup(event.target as IFlexDisplayObject);
+			}
+			
+			/**
+			 * 打开文章事件处理
+			 * @param event 事件对象
+			 * 
+			 */
+			private function openPostHandler(event:IndexChangeEvent):void
+			{
+				if(liPost.selectedItem != null)
+				{
+					if(_myPostsMediator == null)
+					{
+						_myPostsMediator = _facade.retrieveMediator(MyPostsMediator.NAME) as MyPostsMediator;
+					}
+					_myPostsMediator.getPostInfo(liPost.selectedItem.id);
+				}
+			}
+			
+			/**
+			 * 文章列表状态变更完成
+			 * 
+			 * @param event 事件
+			 * */
+			protected function postListStateChangeCompleteHandler(event:FlexEvent):void
+			{
+				// TODO Auto-generated method stub
+				switch(this.currentState)
+				{
+					case "Tag":
+					{
+						liTagPost.selectedItem = null;
+						
+						//清空搜索条件
+						_keywordString = null;
+						_color = 0xffffff;
+
+						searchInput.text = "输入搜索关键字";
+						searchInput.setStyle("color",0xcccccc);
+						searchInput.filterColor = _color;
+						
+						if(_myPostsMediator == null)
+						{
+							_myPostsMediator = _facade.retrieveMediator(MyPostsMediator.NAME) as MyPostsMediator;
+						}
+						_myPostsMediator.initTagPostList();
+						break;
+					}
+					case "Latest":
+					{
+						liPost.selectedItem = null;
+						break;
+					}
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="Latest" />
+		<s:State name="Tag" />
+	</s:states>
+	<s:HGroup width="100%" verticalAlign="middle">
+		<s:HGroup gap="0" width="100%">
+			<ui:AutoCompleteTextInput id="searchInput" 
+									  color="0xcccccc" 
+									  text="输入搜索关键字" 
+									  fontFamily="Lantingqianhei"
+									  focusIn="searchInputFocusInHandler(event)"
+									  focusOut="searchInputFocusOutHandler(event)"
+									  textChange="searchInputChangeHandler(event)" 
+									  change="searchInputItemChangeHandler(event)" 
+									  colorChange="filterColorChangeHandler(event)"/>
+		</s:HGroup>
+		<s:HGroup gap="0">
+			<s:Button id="addPostButton" label="添加文章" color="0x666666" width="70" height="33" skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.AddPostButtonSkin" click="addButtonClickHandler(event)" />
+			<s:Button id="addPostExButon" width="20" height="33" skinClass="cn.vimfung.mybooklet.framework.module.setting.skin.PopupExButtonSkin" click="addPostExButtonClickHandler(event)" />
+		</s:HGroup>
+	</s:HGroup>
+	<s:List id="liPost" 
+			includeIn="Latest"
+			rollOverColor="0xF9F7F8" 
+			selectionColor="0xF9F7F8" 
+			width="100%" 
+			height="100%" 
+			borderColor="0xE1E1E1" 
+			itemRenderer="cn.vimfung.mybooklet.framework.module.myposts.ui.PostItemRenderer" 
+			horizontalScrollPolicy="off"
+			verticalScrollPolicy="on"
+			change="openPostHandler(event)" 
+			skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.PostListSkin">
+	</s:List>
+	<ui:SectionList id="liTagPost"
+					includeIn="Tag"
+					width="100%"
+					height="100%"
+					verticalScrollPolicy="on"
+					horizontalScrollPolicy="off"
+					skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.PostListScrollerSkin">
+		
+	</ui:SectionList>
+</s:VGroup>

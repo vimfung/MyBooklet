@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" gap="2">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.module.myposts.model.AttachmentInfo;
+			
+			import mx.events.FlexEvent;
+			
+			import spark.events.GridSelectionEvent;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			
+			/**
+			 * 备份时间标签函数
+			 * @param item 数据
+			 * @return 标签字符串
+			 * 
+			 */
+			private function createTimeLabelFunction(item:Object, column:GridColumn):String
+			{
+				var hoursString:String = item.createTime.getHours();
+				if(hoursString.length == 1)
+				{
+					hoursString = "0" + hoursString;
+				}
+				var minuteString:String = item.createTime.getMinutes();
+				if(minuteString.length == 1)
+				{
+					minuteString = "0" + minuteString;
+				}
+				var secondString:String = item.createTime.getSeconds();
+				if(secondString.length == 1)
+				{
+					secondString = "0" + secondString;
+				}
+				
+				return item.createTime.getFullYear() + "-" + (item.createTime.getMonth() + 1) + "-" + item.createTime.getDate() + " " + hoursString + ":" + minuteString + ":" + secondString;
+			}
+			
+			/**
+			 * 附件编辑点击
+			 * @param event 事件
+			 * 
+			 * */
+			protected function gridAttachmentChangeHandler(event:GridSelectionEvent):void
+			{
+				var attachInfo:AttachmentInfo = gridAttachment.selectedItem as AttachmentInfo;
+				if (attachInfo != null)
+				{
+					try
+					{
+						attachInfo.file.openWithDefaultApplication();
+					}
+					catch(ex:IllegalOperationError)
+					{
+						_facade.alert("不允许打开的文件!");
+					}
+					catch(ex:Error)
+					{
+						_facade.alert("文件不存在!");
+					}
+					
+					gridAttachment.selectedIndex = -1;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="Normal" />
+		<s:State name="AttachPost" />
+	</s:states>
+	<mx:HTML id="htmlContent" width="100%" height="100%" borderColor="0xE1E1E1" borderVisible="true" borderStyle="solid" />
+	<s:Label includeIn="AttachPost" text="===== 附件 =====" width="100%" textAlign="center" fontFamily="Lantingqianhei" />
+	<s:DataGrid id="gridAttachment" 
+				includeIn="AttachPost"
+				width="100%"
+				height="80"
+				rollOverColor="0xF9F7F8" 
+				selectionColor="0xF9F7F8"
+				borderColor="0xE1E1E1" 
+				selectionChange="gridAttachmentChangeHandler(event)">
+		<s:columns>
+			<s:ArrayCollection>
+				<s:GridColumn headerText="名称" dataField="title" />
+				<s:GridColumn headerText="加入时间" width="200" labelFunction="createTimeLabelFunction" />
+			</s:ArrayCollection>
+		</s:columns>
+	</s:DataGrid>
+</s:VGroup>

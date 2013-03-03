@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  implements="cn.vimfung.gnotes.kit.IApplicationInstance"
+		  width="100%" 
+		  height="100%" 
+		  xmlns:ui="cn.vimfung.mybooklet.framework.module.setting.ui.*">
+	<s:layout>
+		<s:HorizontalLayout paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5"/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.module.setting.command.BackupCommand;
+			import cn.vimfung.mybooklet.framework.module.setting.command.RestoreCommand;
+			import cn.vimfung.mybooklet.framework.module.setting.notification.BackupNotification;
+			import cn.vimfung.mybooklet.framework.module.setting.notification.RestoreNotification;
+			import cn.vimfung.gnotes.kit.ISystemManager;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var _gnFacade:GNFacade = GNFacade.getInstance();
+			
+			/**
+			 * 初始化应用时触发
+			 * @param systemManager 系统管理器
+			 * 
+			 */
+			public function onInitialize(systemManager:ISystemManager):void
+			{
+				
+			} 
+			
+			/**
+			 * 应用显示时触发 
+			 * @param systemManager 系统管理器
+			 * 
+			 */		
+			public function onOpen(systemManager:ISystemManager):void
+			{
+				_gnFacade.registerCommand(BackupNotification.BACKUP_BEGIN, BackupCommand);
+				_gnFacade.registerCommand(RestoreNotification.RESTORE_BEGIN, RestoreCommand);
+			} 
+			
+			/**
+			 * 应用关闭时触发 
+			 * 
+			 */		
+			public function onClose():void
+			{
+				_gnFacade.removeCommand(BackupNotification.BACKUP_BEGIN);
+				_gnFacade.removeCommand(RestoreNotification.RESTORE_BEGIN);
+			} 
+			
+			/**
+			 * 列表项变更 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function listItemChange(event:IndexChangeEvent):void
+			{
+				contentViewStack.selectedIndex = event.newIndex;
+			} 
+		]]>
+	</fx:Script>
+	<s:List borderColor="0xE1E1E1" rollOverColor="0xF9F7F8" selectionColor="0xF9F7F8" height="100%" width="330" change="listItemChange(event)" selectedIndex="0" fontFamily="Lantingqianhei">
+		<s:dataProvider>
+			<s:ArrayCollection>
+				<fx:String>数据备份/还原</fx:String>
+				<fx:String>问题反馈</fx:String>
+				<fx:String>使用说明</fx:String>
+				<fx:String>关于MyBooklet</fx:String>
+			</s:ArrayCollection>
+		</s:dataProvider>
+	</s:List>
+	<mx:ViewStack id="contentViewStack" width="100%" height="100%">
+		<ui:BackupOrRestorePanel />
+		<ui:FeedbackPanel />
+		<ui:OnlineHelpPanel />
+		<ui:AboutPanel />
+	</mx:ViewStack>
+</s:Module>

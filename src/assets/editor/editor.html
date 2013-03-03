@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>MyBookletEditor</title>
+		<meta charset="utf-8">
+		<script src="ckeditor.js"></script>
+	</head>
+	<body style="margin:auto;height:100%;width:100%;">
+		<textarea id="editor" name="editor" style="width:100%;height:expression((this.offsetHeight>150)?'150px':(this.offsetHeight+5)+'px');"></textarea>
+		<script>
+			CKEDITOR.replace( 'editor',
+			{
+				fullPage : true,
+				removePlugins : 'resize',
+				extraPlugins : 'docprops'
+			});
+			CKEDITOR.on('instanceReady',   // editor是CKEDITOR的一个实例
+				function(event)
+				{
+					event.editor.getCommand('maximize').exec();
+				}
+			);
+		</script>
+	</body>
+</html>

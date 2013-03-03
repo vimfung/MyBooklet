@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   height="30"
+				   borderColor="0xE1E1E1"
+				   backgroundColor="0xffffff"
+				   backgroundAlpha="0.75">
+	<s:layout>
+		<s:HorizontalLayout horizontalAlign="center" verticalAlign="middle" paddingBottom="8" paddingLeft="8" paddingRight="8" paddingTop="8" />
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:Label id="contentLabel" fontFamily="Lantingqianhei" />
+</s:BorderContainer>

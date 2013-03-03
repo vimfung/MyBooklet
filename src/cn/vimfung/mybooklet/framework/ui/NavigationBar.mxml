@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   width="100%" 
+				   height="50" 
+				   borderVisible="false" 
+				   backgroundColor="0xF4F2F3" 
+				   backgroundImage="@Embed(source='assets/gnote/navigationBG.png')">
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.notification.SystemNotification;
+			
+			import mx.collections.IList;
+			
+			import spark.events.IndexChangeEvent;
+			
+			/**
+			 * 获取数据源
+			 * @return 数据源
+			 * 
+			 * */
+			public function get dataProvider():IList
+			{
+				return buttonbar.dataProvider;
+			}
+			
+			/**
+			 * 设置数据源
+			 * @return 数据源
+			 * 
+			 * */
+			public function set dataProvider(value:IList):void
+			{
+				buttonbar.dataProvider = value;
+			}
+			
+			/**
+			 * 获取选中索引
+			 * @return 选中索引
+			 * 
+			 * */
+			public function get selectedIndex():int
+			{
+				return buttonbar.selectedIndex;
+			}
+			
+			/**
+			 * 设置选中索引
+			 * @return 选中索引
+			 * 
+			 * */
+			public function set selectedIndex(value:int):void
+			{
+				buttonbar.selectedIndex = value;
+			}
+			
+			/**
+			 * 变更模块
+			 * 
+			 * @param event 事件
+			 * */
+			protected function buttonbar_changeHandler(event:IndexChangeEvent):void
+			{
+				var facade:GNFacade = GNFacade.getInstance();
+				
+				var systemNotification:SystemNotification = new SystemNotification(SystemNotification.OPEN_MODULE, buttonbar.dataProvider[event.newIndex]);
+				facade.postNotification(systemNotification);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:ButtonBar id="buttonbar" 
+				 buttonMode="true" 
+				 skinClass="cn.vimfung.mybooklet.framework.skin.ButtonBarSkin"  
+				 height="44" 
+				 requireSelection="true" 
+				 selectedIndex="0"
+				 fontFamily="Lantingqianhei" 
+				 labelField="title" 
+				 change="buttonbar_changeHandler(event)">
+	</s:ButtonBar>
+</s:BorderContainer>

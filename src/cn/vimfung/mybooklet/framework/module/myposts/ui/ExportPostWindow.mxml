@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="350" 
+			   height="175" 
+			   title="导出选项"
+			   fontFamily="Lantingqianhei">
+	<s:layout>
+		<s:VerticalLayout paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5"/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			
+			/**
+			 * 获取导出文件路径
+			 * @return 文件路径
+			 * */
+			public function get exportFile():String
+			{
+				var filePath:String = null;
+				
+				if(tiPath.text == "")
+				{
+					return null;
+				}
+				else
+				{
+					filePath = tiPath.text;
+				}
+				
+				if(tiName.text == "")
+				{
+					return null;
+				}
+				else
+				{
+					filePath += "\\" + tiName.text;
+				}
+				
+				if(ddlExportType.selectedIndex == -1)
+				{
+					return null;
+				}
+				else
+				{
+					switch(ddlExportType.selectedIndex)
+					{
+						case 0:
+							filePath += ".html";
+							break;
+					}
+				}
+				
+				return filePath;
+			}
+			
+			/**
+			 * 获取导出类型
+			 * @return 导出类型
+			 * */
+			public function get exportType():int
+			{
+				return ddlExportType.selectedIndex;
+			}
+			
+			/**
+			 * 初始化导出对话框
+			 * @param postInfo 文章信息
+			 * */
+			public function initWithPostInfo(postInfo:Object):void
+			{
+				tiName.text = postInfo.originalTitle == null ? postInfo.title : postInfo.originalTitle;
+				tiName.setFocus();
+				tiName.selectAll();
+			}
+			
+			/**
+			 * 取消按钮点击
+			 * @param event 事件对象
+			 * */
+			protected function cancelButtonClickHandler(event:MouseEvent):void
+			{
+				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
+				e.detail = Alert.CANCEL;
+				this.dispatchEvent(e);
+			}
+			
+			/**
+			 * 确认按钮点击
+			 * @param event 事件对象
+			 * */
+			protected function okButtonClickHandler(event:MouseEvent):void
+			{
+				if(tiName.text == "")
+				{
+					_facade.alert("导出名称不能为空!");
+					return;
+				}
+				if(tiPath.text == "")
+				{
+					_facade.alert("导出路径不能为空!");
+					return;
+				}
+				if(ddlExportType.selectedIndex == -1)
+				{
+					_facade.alert("请选择导出类型!");
+					return;
+				}
+				
+				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
+				e.detail = Alert.OK;
+				this.dispatchEvent(e);
+			}
+			
+			/**
+			 * 浏览按钮点击
+			 * @param event 事件对象
+			 * */
+			protected function viewButtonClickHandler(event:MouseEvent):void
+			{
+				var file:File = new File();
+				file.addEventListener(Event.SELECT, selectFileHandler);
+				file.addEventListener(Event.CANCEL, cancelSelectFileHandler);
+				file.browseForDirectory("选择导出路径");
+				
+			}
+			
+			/**
+			 * 选择文件
+			 * @param event 事件
+			 * */
+			private function selectFileHandler(event:Event):void
+			{
+				event.target.removeEventListener(Event.SELECT, selectFileHandler);
+				event.target.removeEventListener(Event.CANCEL, cancelSelectFileHandler);
+				
+				tiPath.text = (event.target as File).nativePath;
+			}
+			
+			/**
+			 * 取消选择文件
+			 * @param event 事件
+			 * */
+			private function cancelSelectFileHandler(event:Event):void
+			{
+				event.target.removeEventListener(Event.SELECT, selectFileHandler);
+				event.target.removeEventListener(Event.CANCEL, cancelSelectFileHandler);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:HGroup width="100%" verticalAlign="middle">
+		<s:Label text="导出名称: " />
+		<s:TextInput id="tiName" width="100%" />
+	</s:HGroup>
+	<s:HGroup width="100%" verticalAlign="middle">
+		<s:Label text="导出路径:" />
+		<s:TextInput id="tiPath" width="100%" editable="false" />
+		<s:Button label="浏览..." click="viewButtonClickHandler(event)" />
+	</s:HGroup>
+	<s:HGroup width="100%" verticalAlign="middle">
+		<s:Label text="导出类型:" />
+		<s:DropDownList id="ddlExportType" width="160" selectedIndex="0">
+			<s:dataProvider>
+				<s:ArrayCollection>
+					<fx:String>HTML文件</fx:String>
+				</s:ArrayCollection>
+			</s:dataProvider>
+		</s:DropDownList>
+	</s:HGroup>
+	<s:controlBarLayout>
+		<s:HorizontalLayout paddingBottom="3" paddingTop="3" horizontalAlign="center" />
+	</s:controlBarLayout>
+	<s:controlBarContent>
+		<s:Button label="确定" click="okButtonClickHandler(event)" />
+		<s:Button label="取消" click="cancelButtonClickHandler(event)" />
+	</s:controlBarContent>
+</s:TitleWindow>

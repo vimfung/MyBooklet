@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   label="备份/还原数据"
+		   creationComplete="backupOrRestorePanelCreationCompleteHandler(event)"
+		   fontFamily="Lantingqianhei">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.module.setting.mediator.BackupOrRestorePanelMediator;
+			
+			import mx.controls.Alert;
+			import mx.controls.Menu;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.MenuEvent;
+			
+			import spark.events.GridSelectionEvent;
+			
+			private var _gnFacade:GNFacade = GNFacade.getInstance();
+			private var _mediator:BackupOrRestorePanelMediator;
+			private var _restoreMenu:Menu;
+			private var _isShowRestoreMenu:Boolean;
+			
+			/**
+			 * 备份按钮事件 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function backupButtonClickHandler(event:MouseEvent):void
+			{
+				var file:File = new File();
+				file.addEventListener(Event.SELECT, selectDirectoryHandler);
+				file.browseForDirectory("选择备份路径");
+			}
+			
+			/**
+			 * 选中备份目录 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function selectDirectoryHandler(event:Event):void
+			{
+				var file:File = event.target as File;
+				
+				var date:Date = new Date();
+				var backupFileName:String = date.getFullYear().toString() + (date.getMonth() + 1).toString() + date.getDate().toString() + date.getHours().toString() + date.getMinutes().toString() + date.getSeconds().toString() + ".zip";
+				var backupFile:File = file.resolvePath(backupFileName);
+				
+				//启动备份数据命令
+				_mediator.backup(backupFile);
+			}
+			
+			/**
+			 * 还原按钮点击 
+			 * @param event 事件
+			 * 
+			 */
+			private function restoreButtonClickHandler(event:MouseEvent):void
+			{
+				if(dgBackupList.selectedItem != null)
+				{
+					_gnFacade.alert("是否还原选中备份?", "提示", "确定", "取消", restoreDlgCloseHandler);
+				}
+				else
+				{
+					_gnFacade.alert("请从列表中选择要恢复的备份");
+				}
+			}
+			
+			/**
+			 * 还原询问对话框关闭 
+			 * @param event 事件
+			 * 
+			 */
+			private function restoreDlgCloseHandler(event:CloseEvent):void
+			{
+				if(event.detail == Alert.OK)
+				{
+					//进行还原
+					_mediator.restore(dgBackupList.selectedItem.url);
+				}
+			}
+			
+			/**
+			 * 备份时间标签函数
+			 * @param item 数据
+			 * @return 标签字符串
+			 * 
+			 */
+			private function backupCreateTimeLabelFunction(item:Object, column:GridColumn):String
+			{
+				
+				var hoursString:String = item.createTime.getHours();
+				if(hoursString.length == 1)
+				{
+					hoursString = "0" + hoursString;
+				}
+				var minuteString:String = item.createTime.getMinutes();
+				if(minuteString.length == 1)
+				{
+					minuteString = "0" + minuteString;
+				}
+				var secondString:String = item.createTime.getSeconds();
+				if(secondString.length == 1)
+				{
+					secondString = "0" + secondString;
+				}
+				
+				return item.createTime.getFullYear() + "-" + (item.createTime.getMonth() + 1) + "-" + item.createTime.getDate() + " " + hoursString + ":" + minuteString + ":" + secondString;
+			}
+			
+			/**
+			 * 面板创建完成
+			 * @param event 事件
+			 * */
+			protected function backupOrRestorePanelCreationCompleteHandler(event:FlexEvent):void
+			{
+				_mediator = new BackupOrRestorePanelMediator(this);
+				
+				_gnFacade.removeMediator(BackupOrRestorePanelMediator.NAME);
+				_gnFacade.registerMediator(_mediator);
+			}
+			
+			/**
+			 * 还原数据扩展按钮点击
+			 * @param event 事件
+			 * */
+			protected function restoreExButtonClickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				if(_restoreMenu == null)
+				{
+					_restoreMenu = Menu.createMenu(restoreButtonEx,[{label:"从文件中还原..."}]);
+					_restoreMenu.addEventListener(MenuEvent.ITEM_CLICK,restoreMenuItemClickHandler);
+					_restoreMenu.addEventListener(MenuEvent.MENU_HIDE,menuHideHanlder);
+					_restoreMenu.setStyle("dropShadowVisible", false);
+					_restoreMenu.setStyle("borderColor",0xE3E3E3);
+					_restoreMenu.setStyle("selectionColor",0xF9F7F8);
+					_restoreMenu.setStyle("rollOverColor", 0xF9F7F8);
+					_restoreMenu.setStyle("color",0x666666);
+				}
+				
+				if(!_isShowRestoreMenu)
+				{
+					_isShowRestoreMenu = true;
+					var point:Point = restoreButton.localToGlobal(new Point(0,0));
+					_restoreMenu.show(point.x - 10, point.y - 25);
+				}
+			}
+			
+			/**
+			 * 菜单项点击
+			 * @param event 事件
+			 * */
+			private function restoreMenuItemClickHandler(event:MenuEvent):void
+			{
+				switch(event.index)
+				{
+					case 0:
+						var file:File = new File();
+						file.browseForOpen("请选择备份文件",[new FileFilter("备份文件","*.zip")]);
+						file.addEventListener(Event.SELECT, selectBackupFileHandler);
+						file.addEventListener(Event.CANCEL, cacelSelectFileHandler);
+						break;
+				}
+			}
+			
+			/**
+			 * 菜单隐藏
+			 * 
+			 * @param event 事件
+			 * */
+			private function menuHideHanlder(event:MenuEvent):void
+			{
+				_isShowRestoreMenu = false;
+			}
+			
+			/**
+			 * 选择备份文件返回
+			 * 
+			 * @param event 事件
+			 * */
+			private function selectBackupFileHandler(event:Event):void
+			{
+				event.target.removeEventListener(Event.SELECT, selectBackupFileHandler);
+				event.target.removeEventListener(Event.CANCEL, cacelSelectFileHandler);
+				
+				_gnFacade.alert("是否还原选中备份?", "提示", "确定", "取消", function (e:CloseEvent):void
+				{
+					if(e.detail == Alert.OK)
+					{
+						_mediator.restore((event.target as File).nativePath);
+					}
+				});
+			}
+			
+			/**
+			 * 取消备份文件选择
+			 * 
+			 * @param event 事件
+			 * */
+			private function cacelSelectFileHandler(event:Event):void
+			{
+				event.target.removeEventListener(Event.SELECT, selectBackupFileHandler);
+				event.target.removeEventListener(Event.CANCEL, cacelSelectFileHandler);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:VGroup width="100%" height="100%" fontFamily="Lantingqianhei">
+		<s:Label text="备份记录" />
+		<s:DataGrid id="dgBackupList" width="100%" height="100%" rollOverColor="0xF9F7F8" selectionColor="0xF9F7F8" borderColor="0xE1E1E1" >
+			<s:columns>
+				<s:ArrayCollection>
+					<s:GridColumn dataField="url" headerText="路径" />
+					<s:GridColumn dataField="createTime" headerText="备份时间" width="200" labelFunction="backupCreateTimeLabelFunction" />
+				</s:ArrayCollection>
+			</s:columns>
+		</s:DataGrid>
+		<s:HGroup horizontalAlign="right" width="100%">
+			<s:Button label="备份数据" skinClass="cn.vimfung.mybooklet.framework.module.setting.ui.GrayButtonSkin" width="120" height="33" click="backupButtonClickHandler(event)" />
+			<s:HGroup gap="0">
+				<s:Button id="restoreButton" label="还原数据" skinClass="cn.vimfung.mybooklet.framework.module.setting.skin.PopupButtonSkin" width="100" height="33" click="restoreButtonClickHandler(event)" />
+				<s:Button id="restoreButtonEx" width="20" height="33" skinClass="cn.vimfung.mybooklet.framework.module.setting.skin.PopupExButtonSkin" click="restoreExButtonClickHandler(event)" />
+			</s:HGroup>
+			
+		</s:HGroup>
+	</s:VGroup>
+</mx:Canvas>

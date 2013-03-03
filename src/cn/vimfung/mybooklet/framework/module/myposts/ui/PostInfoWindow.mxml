@@ -1,0 +1,684 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:fck="http://www.happy-banana.be/fck"
+			   creationComplete="createCompleteHandler(event)"
+			   close="closeHandler(event)"
+			   fontSize="12" xmlns:ui="cn.vimfung.mybooklet.framework.module.myposts.ui.*">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.module.myposts.PostToken;
+			import cn.vimfung.mybooklet.framework.module.myposts.events.PostEvent;
+			import cn.vimfung.mybooklet.framework.module.myposts.mediator.PostInfoWindowMediator;
+			import cn.vimfung.mybooklet.framework.module.myposts.model.AttachmentInfo;
+			import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
+			import cn.vimfung.mybooklet.framework.module.myposts.proxy.MyPostsProxy;
+			import cn.vimfung.mybooklet.framework.ui.TipsProgressPanel;
+			import cn.vimfung.utils.Encode;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.messaging.messages.HTTPRequestMessage;
+			import mx.utils.StringUtil;
+			
+			import spark.events.TextOperationEvent;
+			
+			/**
+			 * 附件文件列表 
+			 */
+			[Bindable]
+			private var _attachFiles:ArrayCollection = new ArrayCollection();
+			
+			private var _postId:Number = -1;
+			private var _source:Object = null;
+			private var _tags:String = "";
+			private var _importUrl:String;
+			private var _charset:String = Encode.UTF_8;
+			private var _operatorId:int = 0;		//操作ID，0 添加， 1 修改， 2 导入
+			
+			private var _tipsPanel:IFlexDisplayObject;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			private var _postProxy:MyPostsProxy = _facade.retrieveProxy(MyPostsProxy.NAME) as MyPostsProxy;
+			private var _mediator:PostInfoWindowMediator;
+			
+			/**
+			 * 编辑文章 
+			 * @param postId 文章ID
+			 * 
+			 */
+			public function editPost(postId:Number):void
+			{
+				_operatorId = 1;
+				_postId = postId;
+				
+				if (this.initialized)
+				{
+					this.execute();
+				}
+			}
+			
+			/**
+			 * 导入文章
+			 * @param source 导入源
+			 * */
+			public function importPost(source:Object):void
+			{
+				_operatorId = 2;
+				_source = source;
+				
+				if (this.initialized)
+				{
+					this.execute();
+				}
+			}
+			
+			/**
+			 * 执行操作
+			 * */
+			private function execute():void
+			{
+				switch(_operatorId)
+				{
+					case 1:
+					{
+						//修改文章
+						//获取文章信息
+						var token:PostToken = _postProxy.getPostInfo(_postId);
+						token.addEventListener(PostEvent.GET_POST_RESULT, getPostResultHandler);
+						token.addEventListener(PostEvent.GET_POST_ERROR, getPostErrorHandler);
+						token.start();
+						break;
+					}
+					case 2:
+					{
+						//导入文章
+						if(_source is File)
+						{
+							this.importFile(_source as File);
+						}
+						else if(_source is String)
+						{
+							this.importUrl(_source as String);
+						}
+						break;
+					}
+				}
+			}
+			
+			/**
+			 * 从文件中导入文章
+			 * @param file 文件
+			 * */
+			private function importFile(file:File):void
+			{
+				var fs:FileStream = new FileStream();
+				fs.open(file,FileMode.READ);
+				try
+				{
+					rteConnect.htmlText = fs.readMultiByte(file.size,Encode.UTF_8);
+				}
+				finally
+				{
+					fs.close();
+				}
+			}
+			
+			/**
+			 * 从连接中导入文章
+			 * @param file 文件
+			 * */
+			private function importUrl(url:String):void
+			{
+				//派发通知
+				var notif:PostNotification = new PostNotification(PostNotification.BEGIN_IMPORT_URL_POST, url);
+				_facade.postNotification(notif);
+			}
+			
+			/**
+			 * 显示提示信息
+			 * 
+			 * @param content 提示内容
+			 * */
+			public function showTip(content:String):void
+			{
+				if(_tipsPanel == null)
+				{
+					_tipsPanel = _facade.popup(TipsProgressPanel,true);
+				}
+				
+				(_tipsPanel as TipsProgressPanel).progressBar.label = content;
+			}
+			
+			/**
+			 * 隐藏提示信息
+			 * 
+			 * */
+			public function hideTip():void
+			{
+				if (_tipsPanel != null)
+				{
+					_facade.removePopup(_tipsPanel);
+					_tipsPanel = null;
+				}
+			}
+			
+			/**
+			 * 设置进度信息
+			 * 
+			 * @param total	总进度
+			 * @param loaded	当前进度
+			 * */
+			public function setProgress(total:Number, loaded:Number):void
+			{
+				(_tipsPanel as TipsProgressPanel).progressBar.setProgress(loaded, total);
+			}
+			
+			/**
+			 * 窗口调整 
+			 * @param event 事件
+			 * 
+			 */
+			private function resizeHandler(event:ResizeEvent):void
+			{
+				this.width = FlexGlobals.topLevelApplication.width;
+				this.height = FlexGlobals.topLevelApplication.height;
+			}
+			
+			/**
+			 * 窗口创建成功 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function createCompleteHandler(event:FlexEvent):void
+			{
+				this.width = FlexGlobals.topLevelApplication.width;
+				this.height = FlexGlobals.topLevelApplication.height;
+				_attachFiles.filterFunction = attachFilterList;
+				_attachFiles.refresh();
+				this.isPopUp = false;		//不允许拖动
+				FlexGlobals.topLevelApplication.addEventListener(ResizeEvent.RESIZE,resizeHandler);
+				
+				var token:PostToken = _postProxy.getUsedTags();
+				token.addEventListener(PostEvent.GET_USED_TAGS_RESULT, getUsedTagsResultHandler);
+				token.addEventListener(PostEvent.GET_USED_TAGS_ERROR, getUsedTagsErrorHandler);
+				token.start();
+				
+				//创建Mediator
+				if(_mediator == null)
+				{
+					var name:String = "postInfoWindow_" + (new Date()).time
+					_mediator = new PostInfoWindowMediator(name, this);
+					_facade.registerMediator(_mediator);
+				}
+				
+				this.execute();
+			}
+			
+			/**
+			 * 取消按钮点击 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function cancelButtonClickHandler(event:MouseEvent):void
+			{
+				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
+				e.detail = Alert.CANCEL;
+				this.dispatchEvent(e);
+			}
+			
+			/**
+			 * 确定按钮点击 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function okButtonClickHandler(event:MouseEvent):void
+			{
+				if (tiTitle.text == "")
+				{
+					_facade.alert("请输入标题!");
+				}
+				else
+				{
+					if(_tipsPanel == null)
+					{
+						_tipsPanel = _facade.popup(TipsProgressPanel, true);
+						(_tipsPanel as TipsProgressPanel).progressBar.label = "正在保存，请稍候...";
+					}
+					var token:PostToken = null;
+					if(_postId == -1)
+					{
+						token = _postProxy.create(tiTitle.text, rteConnect.htmlText, _tags, _attachFiles.source);
+						token.addEventListener(PostEvent.CREATE_POST_RESULT, createPostSuccessHandler);
+						token.addEventListener(PostEvent.CREATE_POST_ERROR, createPostFailHandler);
+						token.addEventListener(PostEvent.CREATE_POST_PROGRESS, createPostProgress);
+						token.start();
+						
+					}
+					else
+					{
+						token = _postProxy.update(_postId, tiTitle.text, rteConnect.htmlText, _tags, _attachFiles.source);
+						token.addEventListener(PostEvent.UPDATE_POST_RESULT, updatePostSuccessHandler);
+						token.addEventListener(PostEvent.UPDATE_POST_ERROR, updatePostFailHandler);
+						token.addEventListener(PostEvent.UPDATE_POST_PROGRESS, updatePostProgressHandler);
+						token.start();
+					}
+					
+					
+				}
+			}
+			
+			/**
+			 * 添加附件按钮点击 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function addAttachmentButtonClickHandler(event:MouseEvent):void
+			{
+				var file:File = new File();
+				file.addEventListener(Event.SELECT,selectAttachHandler);
+				file.browseForOpen("选择附件");
+			}
+			
+			/**
+			 * 删除附件按钮点击 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function removeAttachmentButtonClickHandler(event:MouseEvent):void
+			{
+				if (ddlAttach.selectedIndex != -1)
+				{
+					Alert.show("是否删除附件？","提示",Alert.OK | Alert.CANCEL, null, delFileDlgCloseHandler);
+				}
+				else
+				{
+					Alert.show("请选择要删除的附件!","提示");
+				}
+			}
+			
+			/**
+			 * 选择附件文件
+			 * @param event 事件对象
+			 * 
+			 */
+			private function selectAttachHandler(event:Event):void
+			{
+				var attachInfo:AttachmentInfo = new AttachmentInfo(event.target as File);
+				var hasExists:Boolean = false;
+				for each(var item:AttachmentInfo in _attachFiles.source)
+				{
+					if(item.file.nativePath == attachInfo.file.nativePath)
+					{
+						hasExists = true;
+						if(item.isDelete)
+						{
+							item.isDelete = false;
+							_attachFiles.refresh();
+						}
+						break;
+					}
+				}
+				
+				if(!hasExists)
+				{
+					_attachFiles.addItem(attachInfo);
+				}
+			}
+			
+			/**
+			 * 删除文件询问对话框关闭 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function delFileDlgCloseHandler(event:CloseEvent):void
+			{
+				if (event.detail == Alert.OK)
+				{
+					(ddlAttach.selectedItem as AttachmentInfo).isDelete = true;
+					_attachFiles.refresh();
+				}
+			}
+			
+			/**
+			 * 过滤附件 
+			 * @param item 附件信息
+			 * @return true 表示有效附件，否则为无效附件
+			 * 
+			 */
+			private function attachFilterList(item:Object):Boolean
+			{
+				return (item as AttachmentInfo).isDelete ? false : true;
+			}
+			
+			/**
+			 * 搜索框输入文本变更 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function tagInputChangeHandler(event:TextOperationEvent):void
+			{
+				_tags = tiTags.text;
+			}
+			
+			/**
+			 * 搜索框取得焦点 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function tagInputFocusInHandler(event:FocusEvent):void
+			{
+				if(_tags == "")
+				{
+					tiTags.text = "";
+					tiTags.setStyle("color",0x666666);
+				}
+			}
+			
+			/**
+			 * 搜索框失去焦点 
+			 * @param event 事件对象
+			 * 
+			 */
+			private function tagInputFocusOutHandler(event:FocusEvent):void
+			{
+				if(_tags == "")
+				{
+					tiTags.text = "多个标签请用;号分隔";
+					tiTags.setStyle("color",0xcccccc);
+				}
+			}
+			
+			/**
+			 * 创建文章成功 
+			 * @param event 事件
+			 * 
+			 */
+			private function createPostSuccessHandler(event:PostEvent):void
+			{
+				if(_tipsPanel != null)
+				{
+					_facade.removePopup(_tipsPanel);
+				}
+				
+				//派发添加通知
+				var notif:PostNotification = new PostNotification(PostNotification.ADD_POST, event.postInfo);
+				_facade.postNotification(notif);
+				
+				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
+				e.detail = Alert.OK;
+				this.dispatchEvent(e);
+			}
+			
+			/**
+			 * 创建文章失败 
+			 * @param event 事件
+			 * 
+			 */
+			private function createPostFailHandler(event:PostEvent):void
+			{
+				if(_tipsPanel != null)
+				{
+					_facade.removePopup(_tipsPanel);
+				}
+				
+				_facade.alert(event.error.message);
+			}
+			
+			/**
+			 * 创建文章进度 
+			 * @param event 事件
+			 * 
+			 */
+			private function createPostProgress(event:PostEvent):void
+			{
+				if(_tipsPanel != null)
+				{
+					(_tipsPanel as TipsProgressPanel).progressBar.setProgress(event.progressInfo.progress, event.progressInfo.total);
+				}
+			}
+			
+			/**
+			 * 更新文章成功 
+			 * @param event 事件
+			 * 
+			 */
+			private function updatePostSuccessHandler(event:PostEvent):void
+			{
+				if(_tipsPanel != null)
+				{
+					_facade.removePopup(_tipsPanel);
+				}
+				
+				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
+				e.detail = Alert.OK;
+				this.dispatchEvent(e);
+			}
+			
+			/**
+			 * 更新文章失败 
+			 * @param event 事件
+			 * 
+			 */
+			private function updatePostFailHandler(event:PostEvent):void
+			{
+				if(_tipsPanel != null)
+				{
+					_facade.removePopup(_tipsPanel);
+				}
+				
+				_facade.alert(event.error.message);
+			}
+			
+			/**
+			 * 更新文章进度 
+			 * @param event 事件
+			 * 
+			 */
+			private function updatePostProgressHandler(event:PostEvent):void
+			{
+				if(_tipsPanel != null)
+				{
+					(_tipsPanel as TipsProgressPanel).progressBar.setProgress(event.progressInfo.progress, event.progressInfo.total);
+				}
+			}
+			
+			/**
+			 * 获取文章成功 
+			 * @param event 事件
+			 * 
+			 */
+			private function getPostResultHandler(event:PostEvent):void
+			{
+				event.target.removeEventListener(PostEvent.GET_POST_RESULT, getPostResultHandler);
+				event.target.removeEventListener(PostEvent.GET_POST_ERROR, getPostErrorHandler);
+				
+				var postInfo:Object = event.postInfo;
+				if (postInfo != null)
+				{
+					this.title = "编辑文章 - " + postInfo.title;
+					tiTitle.text = postInfo.title;
+					tiTags.text = postInfo.tags;
+					tiTags.setStyle("color",0x666666);
+					_tags = postInfo.tags;
+					rteConnect.htmlText = postInfo.content;
+				}
+				
+				var attachList:Array = event.attachments;
+				if(attachList != null)
+				{
+					for (var i:int = 0; i < attachList.length; i++)
+					{
+						var attachmentInfo:Object = attachList[i];
+						if(attachmentInfo.url != null)
+						{
+							var file:File = new File(attachmentInfo.url);
+							var attachInfo:AttachmentInfo = new AttachmentInfo(file);
+							attachInfo.id = attachmentInfo.id;
+							attachInfo.status = 1;
+							_attachFiles.addItem(attachInfo);
+						}
+					}
+				}
+			}
+			
+			/**
+			 * 获取文章失败 
+			 * @param event 事件
+			 * 
+			 */
+			private function getPostErrorHandler(event:PostEvent):void
+			{
+				event.target.removeEventListener(PostEvent.GET_POST_RESULT, getPostResultHandler);
+				event.target.removeEventListener(PostEvent.GET_POST_ERROR, getPostErrorHandler);
+				
+				_facade.alert(event.error.message);
+			}
+			
+			/**
+			 * 获取常用变成成功
+			 * @param event 事件
+			 * 
+			 */
+			private function getUsedTagsResultHandler(event:PostEvent):void
+			{
+				event.target.removeEventListener(PostEvent.GET_USED_TAGS_RESULT, getUsedTagsResultHandler);
+				event.target.removeEventListener(PostEvent.GET_USED_TAGS_ERROR, getUsedTagsErrorHandler);
+				
+				var tagString:String = "<span style='display:block;float:left;font-size:12px;'>常用标签:</span>";
+				if(event.tags != null)
+				{
+					for (var i:int = 0; i < event.tags.length; i++)
+					{
+						if(StringUtil.trim(event.tags[i].name) != "")
+						{
+							tagString += "<a style='-moz-border-radius:2px;-webkit-border-radius:2px;border-radius:2px;display:block;float:left;padding:3px 5px 3px 5px;font-family:微软雅黑;background-color:#666666;color:white;font-size:11px;margin:0px 2px 10px 2px;text-decoration:none;' href='#' >" + event.tags[i].name + "</a>";
+						}
+					}
+				}
+				usedTagContent.htmlText = tagString;
+			}
+			
+			/**
+			 * 获取常用标签失败 
+			 * @param event 事件
+			 * 
+			 */
+			private function getUsedTagsErrorHandler(event:PostEvent):void
+			{
+				event.target.removeEventListener(PostEvent.GET_USED_TAGS_RESULT, getUsedTagsResultHandler);
+				event.target.removeEventListener(PostEvent.GET_USED_TAGS_ERROR, getUsedTagsErrorHandler);
+			}
+			
+			/**
+			 * 常用标签加载成功
+			 * @param event 事件
+			 * 
+			 */
+			protected function usedTagContentCompleteHandler(event:Event):void
+			{
+				var document:Object = HTML(event.currentTarget).htmlLoader.window.document;
+				
+				//为常用标签添加点击事件
+				var anchors:Object = document.getElementsByTagName("a");
+				if(anchors != null) 
+				{
+					for(var j:Number=0; j < anchors.length; j++) 
+					{
+						anchors[j].onclick = function():void 
+						{
+							if(StringUtil.trim(_tags) == "")
+							{
+								_tags = (this as Object).innerText;
+							}
+							else
+							{
+								_tags += ";" + (this as Object).innerText;
+							}
+							
+							tiTags.text = _tags;
+							tiTags.setStyle("color",0x666666);
+						}
+					}
+				}
+			}
+			
+			/**
+			 * 关闭窗口事件
+			 * 
+			 * @param event 事件
+			 * */
+			protected function closeHandler(event:CloseEvent):void
+			{
+				_facade.removeMediator(_mediator.getMediatorName());
+			}
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+	<s:VGroup width="100%" height="100%" paddingBottom="7" paddingLeft="7" paddingRight="7"
+			  paddingTop="7">
+		<s:Label fontSize="14" text="标题：" fontFamily="Lantingqianhei" />
+		<s:TextInput id="tiTitle" width="100%" height="33" borderColor="0xE3E3E3" focusAlpha="0"
+					 skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.PostTitleTextInput"
+					 fontFamily="Lantingqianhei"/>
+		<s:Spacer height="10"/>
+		<s:Label fontSize="14" text="内容：" fontFamily="Lantingqianhei"/>
+		<ui:ContentEditor id="rteConnect" width="100%" height="100%" />
+	</s:VGroup>
+	<s:BorderContainer width="260" height="100%" backgroundColor="#FAFAFA" borderVisible="false">
+		<s:layout>
+			<s:VerticalLayout paddingBottom="15" paddingLeft="15" paddingRight="15" paddingTop="15"/>
+		</s:layout>
+		<s:BorderContainer width="100%" height="250" backgroundColor="0xffffff"
+						   borderColor="0xe3e3e3">
+			<s:layout>
+				<s:VerticalLayout gap="0" paddingBottom="5" paddingLeft="5" paddingRight="5"
+								  paddingTop="5"/>
+			</s:layout>
+			<s:TextArea id="tiTags" width="100%" height="100" borderVisible="false"
+						change="tagInputChangeHandler(event)" color="0xcccccc" focusAlpha="0"
+						fontFamily="Lantingqianhei"
+						focusIn="tagInputFocusInHandler(event)"
+						focusOut="tagInputFocusOutHandler(event)" text="多个标签请用;号分隔"/>
+			<s:Image width="100%" height="1" source="assets/gnote/post_line.png"/>
+			<mx:HTML id="usedTagContent" width="100%" height="100%"
+					 fontFamily="Lantingqianhei"
+					 complete="usedTagContentCompleteHandler(event)" paddingTop="5"/>
+		</s:BorderContainer>
+		<s:Spacer height="10"/>
+		<s:Label fontSize="14" text="附件：" fontFamily="Lantingqianhei"/>
+		<s:List id="ddlAttach" width="100%" height="100%" 
+				borderColor="0xE3E3E3"
+				dataProvider="{_attachFiles}" 
+				labelField="title"
+				fontFamily="Lantingqianhei"/>
+		<s:HGroup width="100%">
+			<s:Button width="100%" height="30" label="添加"
+					  fontFamily="Lantingqianhei"
+					  click="addAttachmentButtonClickHandler(event)"/>
+			<s:Button width="100%" height="30" label="删除"
+					  fontFamily="Lantingqianhei"
+					  click="removeAttachmentButtonClickHandler(event)"/>
+		</s:HGroup>
+	</s:BorderContainer>
+	<s:controlBarLayout>
+		<s:HorizontalLayout horizontalAlign="center" paddingBottom="3" paddingTop="3"
+							verticalAlign="middle"/>
+	</s:controlBarLayout>
+	<s:controlBarContent>
+		<s:Button width="85" height="30" label="确定" click="okButtonClickHandler(event)" fontFamily="Lantingqianhei"/>
+		<s:Button width="85" height="30" label="取消" click="cancelButtonClickHandler(event)" fontFamily="Lantingqianhei"/>
+	</s:controlBarContent>
+</s:TitleWindow>

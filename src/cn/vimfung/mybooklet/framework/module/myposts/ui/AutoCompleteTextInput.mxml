@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ComboBox xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			xmlns:s="library://ns.adobe.com/flex/spark" 
+			xmlns:mx="library://ns.adobe.com/flex/mx"
+			width="100%" 
+			height="33"
+			dropShadowVisible="false" 
+			focusAlpha="0" 
+			skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.AutoCompleteTextInputSkin" 
+			creationComplete="autoCompleteTextInputCreationCompleteHandler(event)" 
+			change="itemChangeHandler(event)"
+			borderColor="0xE1E1E1" 
+			rollOverColor="0xF9F7F8" 
+			selectionColor="0xF9F7F8">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Metadata>
+		[Event(name="textChange",type="flash.events.Event")]
+		[Event(name="colorChange", type="cn.vimfung.mybooklet.framework.module.myposts.events.ColorFilterEvent")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.module.myposts.events.ColorFilterEvent;
+			import cn.vimfung.mybooklet.framework.module.myposts.skin.AutoCompleteTextInputSkin;
+			
+			import mx.core.FlexGlobals;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.supportClasses.ItemRenderer;
+			import spark.events.IndexChangeEvent;
+			import spark.events.TextOperationEvent;
+			import spark.skins.spark.DefaultItemRenderer;
+			
+			private var _text:String;
+			private var _filterColor:uint = 0xffffff;
+			private var _textItemRenderer:IFactory = new ClassFactory(DefaultItemRenderer);
+			
+			private var _hasSelectedItem:Boolean = false;
+			private var _openColorPicker:Boolean = false;
+			private var _focusTextEnd:Boolean = false;
+			
+			private var _pickerColorPanel:IFlexDisplayObject = null;
+			
+			/**
+			 * 获取筛选颜色
+			 * 
+			 * @return 筛选颜色
+			 * */
+			public function get filterColor():uint
+			{
+				return _filterColor;
+			}
+
+			/**
+			 * 设置筛选颜色
+			 * 
+			 * @param value 筛选颜色
+			 * */
+			public function set filterColor(value:uint):void
+			{
+				_filterColor = value;
+				this.skin.invalidateDisplayList();
+			}
+
+			/**
+			 * 获取输入文本
+			 * @return 文本信息
+			 * */
+			public function get text():String
+			{
+				return _text;
+			}
+			
+			/**
+			 * 设置文本
+			 * @param value 文本信息
+			 * */
+			public function set text(value:String):void
+			{
+				_text = value;
+				if(this.initialized)
+				{
+					this.textInput.text = _text;
+				}
+			}
+			
+			/**
+			 * 构造完成
+			 * @param event 事件
+			 * */
+			protected function autoCompleteTextInputCreationCompleteHandler(event:FlexEvent):void
+			{
+				this.textInput.text = _text;
+				this.textInput.addEventListener(FlexEvent.SELECTION_CHANGE, textInputSelectionChangeHandler);
+				this.textInput.addEventListener(KeyboardEvent.KEY_DOWN, textInputKeyDownHandler);
+				
+				(this.skin as AutoCompleteTextInputSkin).colorFilterButton.addEventListener(MouseEvent.MOUSE_DOWN, colorFilterButtonMouseDownHandler);
+			}
+			
+			/**
+			 * @inheritDoc
+			 * */
+			override protected function focusInHandler(event:FocusEvent):void
+			{
+				super.focusInHandler(event);
+				
+				//重置索引值，避免在输入信息时由于数据源变更导致文本框内容清空问题
+				this.refreshTextInput();
+			} 
+			
+			/**
+			 * @inheritDoc
+			 * */
+			override protected function textInput_changeHandler(event:TextOperationEvent):void
+			{
+				_text = this.textInput.text;
+				super.textInput_changeHandler(event);
+
+				var e:Event = new Event("textChange");
+				this.dispatchEvent(e);
+			}
+			
+			/**
+			 * @inheritDoc
+			 * */
+			override protected function commitProperties():void
+			{
+				super.commitProperties();
+				
+				if(_hasSelectedItem)
+				{
+					_hasSelectedItem = false;
+					this.textInput.text = _text;
+					this.textInput.selectRange(this.text.length, this.text.length); 
+				}
+			}   
+			
+			/**
+			 * 下拉列表项选中
+			 * 
+			 * @param event 事件
+			 * */
+			protected function itemChangeHandler(event:IndexChangeEvent):void
+			{
+				if(event.newIndex >=0 && event.newIndex < this.dataProvider.length)
+				{
+					_hasSelectedItem = true;
+					_focusTextEnd = true;
+					this.text = this.dataProvider[event.newIndex];
+					
+					this.refreshTextInput();
+					this.textInput.selectAll();
+				}
+			}
+			
+			/**
+			 * 文本选中事件
+			 * 
+			 * @param event 事件
+			 * */
+			private function textInputSelectionChangeHandler(event:FlexEvent):void
+			{
+				if(_focusTextEnd)
+				{
+					_focusTextEnd = false;
+					if(this.textInput.text != "" && this.textInput.selectionActivePosition != this.textInput.text.length)
+					{
+						this.textInput.selectAll();
+					}
+				}
+			}
+			
+			/**
+			 * 文本框中键盘按下事件
+			 * 
+			 * @param event 事件
+			 * */
+			private function textInputKeyDownHandler(event:KeyboardEvent):void
+			{
+				if(event.keyCode == Keyboard.ENTER)
+				{
+					//按下回车后需要使文本全部选中
+					_text = this.textInput.text;
+					this.refreshTextInput();
+					this.textInput.selectAll();
+					_focusTextEnd = true;
+				}
+			}
+			
+			/**
+			 * 刷新文本输入框，避免下次输入内容时进行清空
+			 * */
+			private function refreshTextInput():void
+			{
+				this.selectedIndex = -1;
+				this.dataProvider.removeAll();
+				super.commitProperties();
+				
+				this.textInput.text = _text;
+			}
+			
+			/**
+			 * 颜色筛选按钮点击
+			 * 
+			 * @param event 事件
+			 * */
+			private function colorFilterButtonMouseDownHandler(event:MouseEvent):void
+			{
+				if(_pickerColorPanel == null)
+				{
+					_pickerColorPanel = PopUpManager.createPopUp(FlexGlobals.topLevelApplication as DisplayObject, ColorPickerPanel, false);
+					_pickerColorPanel.addEventListener(ColorFilterEvent.COLOR_CHANGE, colorChangeHandler);
+					var pt:Point = this.localToGlobal(new Point(0,this.height - 1));
+					_pickerColorPanel.x = pt.x;
+					_pickerColorPanel.y = pt.y;
+				}
+				
+				this.stage.addEventListener(MouseEvent.MOUSE_DOWN, stageMouseDownHandler);
+				event.stopImmediatePropagation();
+			}
+			
+			/**
+			 * 场景鼠标按下事件
+			 * 
+			 * @param event 事件
+			 * */
+			private function stageMouseDownHandler(event:MouseEvent):void
+			{
+				event.target.removeEventListener(MouseEvent.MOUSE_DOWN, stageMouseDownHandler);
+				
+				PopUpManager.removePopUp(_pickerColorPanel);
+				_pickerColorPanel = null;
+			}
+			
+			/**
+			 * 筛选颜色变更
+			 * 
+			 * @param event 事件
+			 * */
+			private function colorChangeHandler(event:ColorFilterEvent):void
+			{
+				this.filterColor = event.color;
+				
+				var e:ColorFilterEvent = new ColorFilterEvent(ColorFilterEvent.COLOR_CHANGE);
+				e.color = event.color;
+				this.dispatchEvent(e);
+			}
+		]]>
+	</fx:Script>
+	<s:dataProvider>
+		<s:ArrayCollection />
+	</s:dataProvider>
+</s:ComboBox>

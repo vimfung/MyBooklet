@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  height="50"
+		  borderColor="0xE3E3E3"
+		  backgroundColor="0xffffff"
+		  backgroundAlpha="0.75">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:layout>
+		<s:VerticalLayout horizontalAlign="center" verticalAlign="middle" paddingBottom="8" paddingLeft="8" paddingRight="8" paddingTop="8" />
+	</s:layout>
+	<mx:ProgressBar color="0x666666" mode="manual" id="progressBar" width="100%" labelPlacement="top" fontFamily="Lantingqianhei" />
+</s:BorderContainer>
