@@ -12,12 +12,15 @@
 	<fx:Script>
 		<![CDATA[
 			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.module.myposts.Constant;
 			import cn.vimfung.mybooklet.framework.module.myposts.PostToken;
 			import cn.vimfung.mybooklet.framework.module.myposts.events.PostEvent;
 			import cn.vimfung.mybooklet.framework.module.myposts.mediator.PostInfoWindowMediator;
 			import cn.vimfung.mybooklet.framework.module.myposts.model.AttachmentInfo;
 			import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
 			import cn.vimfung.mybooklet.framework.module.myposts.proxy.MyPostsProxy;
+			import cn.vimfung.mybooklet.framework.module.myposts.token.CreatePostToken;
+			import cn.vimfung.mybooklet.framework.module.myposts.token.UpdatePostToken;
 			import cn.vimfung.mybooklet.framework.ui.TipsProgressPanel;
 			import cn.vimfung.utils.Encode;
 			
@@ -38,6 +41,7 @@
 			 */
 			[Bindable]
 			private var _attachFiles:ArrayCollection = new ArrayCollection();
+			private var _files:Array = new Array();			//文件映射列表，如导入或添加的文件
 			
 			private var _postId:Number = -1;
 			private var _source:Object = null;
@@ -52,6 +56,16 @@
 			private var _postProxy:MyPostsProxy = _facade.retrieveProxy(MyPostsProxy.NAME) as MyPostsProxy;
 			private var _mediator:PostInfoWindowMediator;
 			
+			/**
+			 * 获取内容引用文件列表
+			 * 
+			 * @return 引用文件列表
+			 * */
+			public function get files():Array
+			{
+				return _files;
+			}
+
 			/**
 			 * 编辑文章 
 			 * @param postId 文章ID
@@ -255,26 +269,24 @@
 						_tipsPanel = _facade.popup(TipsProgressPanel, true);
 						(_tipsPanel as TipsProgressPanel).progressBar.label = "正在保存，请稍候...";
 					}
-					var token:PostToken = null;
+
 					if(_postId == -1)
 					{
-						token = _postProxy.create(tiTitle.text, rteConnect.htmlText, _tags, _attachFiles.source);
-						token.addEventListener(PostEvent.CREATE_POST_RESULT, createPostSuccessHandler);
-						token.addEventListener(PostEvent.CREATE_POST_ERROR, createPostFailHandler);
-						token.addEventListener(PostEvent.CREATE_POST_PROGRESS, createPostProgress);
-						token.start();
+						var createToken:CreatePostToken = _postProxy.create(tiTitle.text, rteConnect.htmlText, _tags, _attachFiles.source, _files);
+						createToken.addEventListener(PostEvent.CREATE_POST_RESULT, createPostSuccessHandler);
+						createToken.addEventListener(PostEvent.CREATE_POST_ERROR, createPostFailHandler);
+						createToken.addEventListener(PostEvent.CREATE_POST_PROGRESS, createPostProgress);
+						createToken.start();
 						
 					}
 					else
 					{
-						token = _postProxy.update(_postId, tiTitle.text, rteConnect.htmlText, _tags, _attachFiles.source);
-						token.addEventListener(PostEvent.UPDATE_POST_RESULT, updatePostSuccessHandler);
-						token.addEventListener(PostEvent.UPDATE_POST_ERROR, updatePostFailHandler);
-						token.addEventListener(PostEvent.UPDATE_POST_PROGRESS, updatePostProgressHandler);
-						token.start();
+						var updateToken:UpdatePostToken = _postProxy.update(_postId, tiTitle.text, rteConnect.htmlText, _tags, _attachFiles.source, _files);
+						updateToken.addEventListener(PostEvent.UPDATE_POST_RESULT, updatePostSuccessHandler);
+						updateToken.addEventListener(PostEvent.UPDATE_POST_ERROR, updatePostFailHandler);
+						updateToken.addEventListener(PostEvent.UPDATE_POST_PROGRESS, updatePostProgressHandler);
+						updateToken.start();
 					}
-					
-					
 				}
 			}
 			
@@ -620,6 +632,18 @@
 			 * */
 			protected function closeHandler(event:CloseEvent):void
 			{
+				//清除files中临时文件
+				if (_files.length > 0)
+				{
+					//由于全部文件存放于同一目录，取其中一个文件的父级目录进行清除即可。
+					var file:File = _files[0].file;
+					if (file != null && file.parent != null && file.parent.exists)
+					{
+						file.parent.deleteDirectoryAsync(true);
+					}
+				}
+				_files.splice(0);
+				
 				_facade.removeMediator(_mediator.getMediatorName());
 			}
 		]]>

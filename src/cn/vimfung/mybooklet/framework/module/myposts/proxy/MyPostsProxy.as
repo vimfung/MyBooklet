@@ -5,6 +5,8 @@ package cn.vimfung.mybooklet.framework.module.myposts.proxy
 	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.module.myposts.PostToken;
 	import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
+	import cn.vimfung.mybooklet.framework.module.myposts.token.CreatePostToken;
+	import cn.vimfung.mybooklet.framework.module.myposts.token.UpdatePostToken;
 	
 	import flash.data.SQLResult;
 	import flash.geom.Point;
@@ -104,14 +106,13 @@ package cn.vimfung.mybooklet.framework.module.myposts.proxy
 		 * @param content 内容
 		 * @param tags 标签
 		 * @param attachments 附件
+		 * @param files 内容引用文件
 		 * @return 令牌对象
 		 * 
 		 */		
-		public function create(title:String, content:String, tags:String, attachments:Array):PostToken
+		public function create(title:String, content:String, tags:String, attachments:Array, files:Array):CreatePostToken
 		{
-			var token:PostToken = new PostToken();
-			token.initCreatePostToken(title, content, tags, attachments);
-			return token;
+			return new CreatePostToken(title,content, tags, attachments, files);
 		}
 		
 		/**
@@ -121,14 +122,13 @@ package cn.vimfung.mybooklet.framework.module.myposts.proxy
 		 * @param content	内容
 		 * @param tags	标签
 		 * @param attachments	附件列表
+		 * @param files 引用文件列表
 		 * @return 令牌对象
 		 * 
 		 */		
-		public function update(postId:Number, title:String, content:String, tags:String, attachments:Array):PostToken
+		public function update(postId:Number, title:String, content:String, tags:String, attachments:Array, files:Array):UpdatePostToken
 		{
-			var token:PostToken = new PostToken();
-			token.initUpdatePostToken(postId, title, content, tags, attachments);
-			return token;
+			return new UpdatePostToken(postId,title,content,tags,attachments,files);
 		}
 		
 		/**

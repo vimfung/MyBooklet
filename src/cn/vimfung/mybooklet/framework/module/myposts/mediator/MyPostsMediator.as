@@ -2,6 +2,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 {
 	import cn.vimfung.mybooklet.framework.GNFacade;
 	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
+	import cn.vimfung.mybooklet.framework.module.myposts.Constant;
 	import cn.vimfung.mybooklet.framework.module.myposts.IMyPosts;
 	import cn.vimfung.mybooklet.framework.module.myposts.MyPosts;
 	import cn.vimfung.mybooklet.framework.module.myposts.PostToken;
@@ -13,8 +14,15 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 	import cn.vimfung.mybooklet.framework.module.myposts.model.TagPostListState;
 	import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
 	import cn.vimfung.mybooklet.framework.module.myposts.proxy.MyPostsProxy;
+	import cn.vimfung.utils.Encode;
 	
 	import flash.filesystem.File;
+	import flash.filesystem.FileMode;
+	import flash.filesystem.FileStream;
+	import flash.html.HTMLLoader;
+	import flash.system.ApplicationDomain;
+	import flash.system.System;
+	import flash.utils.ByteArray;
 	
 	import mx.collections.ArrayCollection;
 	import mx.utils.StringUtil;
@@ -362,7 +370,8 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 				}
 				contentString = "<div style='margin:10px 10px 0px 10px;font-family:微软雅黑;font-size:14px;' >" + postInfo.title + "<div>" + tagString + "</div><hr style='clear:both;border:none;border-bottom:1px dashed #E1E1E1;' /></div><div style='margin:5px 10px 10px 10px;clear:both;font-family:Lantingqianhei;微软雅黑;'>" + postInfo.content + "</div>";
 			}
-			
+
+			_myPostsModule.contentView.htmlContent.htmlLoader.placeLoadStringContentInApplicationSandbox = true;
 			_myPostsModule.contentView.htmlContent.htmlText = contentString;
 			
 			if(event.attachments != null)

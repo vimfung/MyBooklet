@@ -5,6 +5,8 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 	import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
 	import cn.vimfung.mybooklet.framework.module.myposts.ui.PostInfoWindow;
 	
+	import flash.utils.Dictionary;
+	
 	import org.puremvc.as3.interfaces.IMediator;
 	import org.puremvc.as3.interfaces.INotification;
 	import org.puremvc.as3.patterns.mediator.Mediator;
@@ -73,8 +75,17 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 				}
 				case PostNotification.IMPORT_URL_POST_LOAD_SUCCESS:
 				{
+					var contentInfo:Object = notification.getBody();
+					
+					postInfoWindow.files.splice(0);
+					var fileMap:Dictionary = contentInfo.files;		//取得文件映射表
+					for (var i:String in fileMap)
+					{
+						postInfoWindow.files.push(fileMap[i]);
+					}
+					
 					postInfoWindow.hideTip();
-					postInfoWindow.rteConnect.htmlText = notification.getBody() as String;
+					postInfoWindow.rteConnect.htmlText = contentInfo.content;
 					break;
 				}
 			}

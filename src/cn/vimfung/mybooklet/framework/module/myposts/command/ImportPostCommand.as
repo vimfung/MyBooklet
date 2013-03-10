@@ -1,7 +1,10 @@
 package cn.vimfung.mybooklet.framework.module.myposts.command
 {
+	import cn.vimfung.common.net.Url;
+	import cn.vimfung.common.utils.StringUtil;
 	import cn.vimfung.mybooklet.framework.GNFacade;
 	import cn.vimfung.mybooklet.framework.model.ProgressInfo;
+	import cn.vimfung.mybooklet.framework.module.myposts.FileDownloader;
 	import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
 	import cn.vimfung.utils.Encode;
 	
@@ -10,11 +13,18 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 	import flash.events.HTTPStatusEvent;
 	import flash.events.IOErrorEvent;
 	import flash.events.ProgressEvent;
+	import flash.filesystem.File;
+	import flash.html.HTMLLoader;
 	import flash.net.URLLoader;
 	import flash.net.URLLoaderDataFormat;
 	import flash.net.URLRequest;
 	import flash.net.URLRequestHeader;
 	import flash.utils.ByteArray;
+	import flash.utils.Dictionary;
+	
+	import mx.controls.HTML;
+	import mx.managers.BrowserManager;
+	import mx.utils.URLUtil;
 	
 	import org.puremvc.as3.interfaces.ICommand;
 	import org.puremvc.as3.interfaces.INotification;
@@ -36,6 +46,11 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 		private var _charset:String = Encode.UTF_8;
 		private var _facade:GNFacade = GNFacade.getInstance();
 		
+		private var _resourceDict:Dictionary;
+		private var _fileCount:int;
+		private var _downloadFileCount:int;
+		private var _content:String;
+		
 		/**
 		 * @inheritDoc
 		 * 
@@ -50,7 +65,6 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 			loader.addEventListener(Event.COMPLETE, loadRequestCompleteHandler);
 			loader.addEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS, httpResponseStatusHandler);
 			loader.addEventListener(IOErrorEvent.IO_ERROR, loadRequestErrorHandler);
-			loader.addEventListener(ProgressEvent.PROGRESS, loadRequestProgressHandler);
 		}
 		
 		/**
@@ -84,25 +98,10 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 		{
 			event.target.removeEventListener(Event.COMPLETE, loadRequestCompleteHandler);
 			event.target.removeEventListener(IOErrorEvent.IO_ERROR, loadRequestErrorHandler);
-			event.target.removeEventListener(ProgressEvent.PROGRESS, loadRequestProgressHandler);
 			event.target.removeEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS, httpResponseStatusHandler);
 			
 			var error:IOError = new IOError(event.text, event.errorID);
 			var notif:PostNotification = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_ERROR, error);
-			_facade.postNotification(notif);
-		}
-		
-		/**
-		 * 加载请求进度
-		 * @param event 事件
-		 * */
-		private function loadRequestProgressHandler(event:ProgressEvent):void
-		{
-			var progressInfo:ProgressInfo = new ProgressInfo();
-			progressInfo.progress = event.bytesLoaded;
-			progressInfo.total = event.bytesTotal;
-			
-			var notif:PostNotification = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_PROGRESS, progressInfo);
 			_facade.postNotification(notif);
 		}
 		
@@ -114,92 +113,143 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 		{
 			event.target.removeEventListener(Event.COMPLETE, loadRequestCompleteHandler);
 			event.target.removeEventListener(IOErrorEvent.IO_ERROR, loadRequestErrorHandler);
-			event.target.removeEventListener(ProgressEvent.PROGRESS, loadRequestProgressHandler);
 			event.target.removeEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS, httpResponseStatusHandler);
 			
-			var host:String = null;
-			var schemaIndex:int = _url.indexOf("://") + "://".length;
-			var hostIndex:int = _url.indexOf("/",schemaIndex);
-			if(hostIndex == -1)
+			var baseUrl:Url = Url.create(_url);
+			
+			var buf:ByteArray = event.target.data as ByteArray;
+			_content = buf.readMultiByte(buf.length, _charset);
+			
+			var notif:PostNotification = null;
+			var tmpDir:File = File.createTempDirectory();
+			var tmpFile:File = null;
+			_fileCount = 0;
+			_resourceDict = new Dictionary();
+
+			//查找所有图片和样式表路径，如果不是绝对路径则进行替换
+			var regexp:RegExp = new RegExp("\\s*(href\\s*=\\s*([\\'\\\"\\s]([^\\\"\\']*)[\\'\\\"]))","\g\i");
+			_content = _content.replace(regexp, function():String {
+				var urlString:String = arguments[3];
+				var url:Url = Url.create(urlString, baseUrl);
+				var targetString:String = "href=\"" + url.absoluteString + "\"";
+				
+				//判断是否为css或js脚本
+				if (StringUtil.hasSuffix(url.path, "[\\.](css|js)"))
+				{
+					_fileCount++;
+					tmpFile = tmpDir.resolvePath(StringUtil.lastPathComponent(url.path));
+					_resourceDict[urlString] = {source:targetString, format:"href=\"{0}\"", file:tmpFile}; 
+				}
+				
+				return arguments[0].replace(arguments[1], targetString);
+			});
+			
+			regexp = new RegExp("\\s*(src\\s*=\\s*([\\'\\\"\\s]([^\\\"\\']*)[\\'\\\"]))", "\g\i");
+			_content = _content.replace(regexp, function():String {
+				var urlString:String = arguments[3];
+				var url:Url = Url.create(urlString, baseUrl);
+				var targetString:String = "src=\"" + url.absoluteString + "\"";
+				
+				//判断是否为css或js脚本
+				if (StringUtil.hasSuffix(url.path, "[\\.](css|js|jpg|jpeg|png|bmp|gif)"))
+				{
+					_fileCount++;
+					tmpFile = tmpDir.resolvePath(StringUtil.lastPathComponent(url.path));
+					_resourceDict[urlString] = {source:targetString, format:"src=\"{0}\"", file:tmpFile};
+				}
+
+				return arguments[0].replace(arguments[1], targetString);
+			});
+			
+			if (_fileCount > 0)
 			{
-				host = _url + "/";
+				//下载资源文件
+				_downloadFileCount = 0;
+				for (var i:String in _resourceDict)
+				{
+					var downloader:FileDownloader = new FileDownloader(i, _resourceDict[i].file);
+					downloader.addEventListener(Event.COMPLETE, downloadCompleteHandler);
+					downloader.addEventListener(IOErrorEvent.IO_ERROR, downloadErrorHandler);
+					downloader.start();
+				}
+				
+				var progressInfo:ProgressInfo = new ProgressInfo();
+				progressInfo.progress = 1;
+				progressInfo.total = 1 + _fileCount;
+				
+				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_PROGRESS, progressInfo);
+				_facade.postNotification(notif);
 			}
 			else
 			{
-				host = _url.substr(0, _url.indexOf("/",schemaIndex) + 1);
+				//派发完成事件
+				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_SUCCESS, {"content" : _content});
+				_facade.postNotification(notif);
 			}
+		}
+		
+		/**
+		 * 下载完成 
+		 * @param event 事件
+		 * 
+		 */		
+		private function downloadCompleteHandler(event:Event):void
+		{
+			event.target.removeEventListener(Event.COMPLETE, downloadCompleteHandler);
+			event.target.removeEventListener(IOErrorEvent.IO_ERROR, downloadErrorHandler);
 			
-			var path:String = null;
-			var queryIndex:int = _url.lastIndexOf("?");
-			if(queryIndex != -1)
+			_downloadFileCount++;
+			
+			var notif:PostNotification = null;
+			
+			if (_downloadFileCount == _fileCount)
 			{
-				var url:String = _url.substr(0, queryIndex);
-				var extIndex:int = url.lastIndexOf(".");
-				if(extIndex == -1)
-				{
-					if(url.charAt(url.length - 1) == "/")
-					{
-						path = url;
-					}
-					else
-					{
-						path += "/";
-					}
-				}
-				else
-				{
-					path = url.substr(0, url.lastIndexOf("/") + 1);
-				}
+				//派发完成事件
+				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_SUCCESS, {"content" : _content, "files": _resourceDict});
+				_facade.postNotification(notif);
 			}
+			else 
+			{
+				//派发进度事件
+				var progressInfo:ProgressInfo = new ProgressInfo();
+				progressInfo.progress = 1 + _downloadFileCount;
+				progressInfo.total = 1 + _fileCount;
+				
+				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_PROGRESS, progressInfo);
+				_facade.postNotification(notif);
+			}
+		}
+		
+		/**
+		 * 下载失败 
+		 * @param event 事件
+		 * 
+		 */		
+		private function downloadErrorHandler(event:IOErrorEvent):void
+		{
+			event.target.removeEventListener(Event.COMPLETE, downloadCompleteHandler);
+			event.target.removeEventListener(IOErrorEvent.IO_ERROR, downloadErrorHandler);
 			
-			var buf:ByteArray = event.target.data as ByteArray;
+			_downloadFileCount++;
 			
-			var content:String = buf.readMultiByte(buf.length, _charset);
-			//查找所有图片和样式表路径，如果不是绝对路径则进行替换
-			var regexp:RegExp = new RegExp("(\\s*href\\s*=\\s*([\\'\\\"\\s]([^\\\"\\']*)[\\'\\\"]))","\g\i");
-			content = content.replace(regexp, function():String {
-				var url:String = arguments[3];
-				if(url.indexOf("://") == -1)
-				{
-					if(url.charAt() == "/")
-					{
-						url = host + url.substr(1);
-					}
-					else
-					{
-						url = path + url;
-					}
-					return "href=\"" + url + "\""; 
-				}
-				else
-				{
-					return arguments[0];
-				}
-			});
+			var notif:PostNotification = null;
 			
-			regexp = new RegExp("(\\s*src\\s*=\\s*([\\'\\\"\\s]([^\\\"\\']*)[\\'\\\"]))", "\g\i");
-			content = content.replace(regexp, function():String {
-				var url:String = arguments[3];
-				if(url.indexOf("://") == -1)
-				{
-					if(url.charAt() == "/")
-					{
-						url = host + url.substr(1);
-					}
-					else
-					{
-						url = path + url;
-					}
-					return "src=\"" + url + "\""; 
-				}
-				else
-				{
-					return arguments[0];
-				}
-			});
-			
-			var notif:PostNotification = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_SUCCESS, content);
-			_facade.postNotification(notif);
+			if (_downloadFileCount == _fileCount)
+			{
+				//派发完成事件
+				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_SUCCESS, {"content" : _content, "files": _resourceDict});
+				_facade.postNotification(notif);
+			}
+			else 
+			{
+				//派发进度事件
+				var progressInfo:ProgressInfo = new ProgressInfo();
+				progressInfo.progress = 1 + _downloadFileCount;
+				progressInfo.total = 1 + _fileCount;
+				
+				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_PROGRESS, progressInfo);
+				_facade.postNotification(notif);
+			}
 		}
 	}
 }

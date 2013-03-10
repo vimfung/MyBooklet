@@ -68,8 +68,24 @@ package cn.vimfung.mybooklet.framework.module.myposts
 		 */		
 		public static function get AttachmentPath():File
 		{
-			var file:File = Constant.DocumentPath.resolvePath("attach")
+			var file:File = Constant.DocumentPath.resolvePath("attach");
 			if(!file.exists)
+			{
+				file.createDirectory();
+			}
+			
+			return file;
+		}
+		
+		/**
+		 * 获取存放内容引用文件目录 
+		 * @return 内容引用文件目录
+		 * 
+		 */		
+		public static function get FilesPath():File
+		{
+			var file:File = Constant.DocumentPath.resolvePath("files");
+			if (!file.exists)
 			{
 				file.createDirectory();
 			}
