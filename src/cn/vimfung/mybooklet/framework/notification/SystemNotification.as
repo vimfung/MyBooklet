@@ -34,5 +34,10 @@ package cn.vimfung.mybooklet.framework.notification
 		 * 打开模块 
 		 */		
 		public static const OPEN_MODULE:String = "openModule";
+		
+		/**
+		 * 全屏模式 
+		 */		
+		public static const FULL_SCREEN:String = "fullScreen";
 	}
 }

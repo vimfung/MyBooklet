@@ -2,6 +2,7 @@ package cn.vimfung.mybooklet.framework
 {
 	import avmplus.FLASH10_FLAGS;
 	
+	import cn.vimfung.gnotes.kit.ISystemManager;
 	import cn.vimfung.mybooklet.framework.command.CheckVersionCommand;
 	import cn.vimfung.mybooklet.framework.command.OpenModuleCommand;
 	import cn.vimfung.mybooklet.framework.command.SystemStartupCommand;
@@ -10,7 +11,6 @@ package cn.vimfung.mybooklet.framework
 	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.notification.SystemNotification;
 	import cn.vimfung.mybooklet.framework.patch.ImportUsedTagPatch;
-	import cn.vimfung.gnotes.kit.ISystemManager;
 	
 	import flash.display.DisplayObject;
 	import flash.filesystem.File;
@@ -61,6 +61,31 @@ package cn.vimfung.mybooklet.framework
 		private var _systemDatabase:SystemDatabase;
 		private var _documentDatabase:DocumentDatabase;
 		private var _mainModuleList:Array;
+		
+		private var _fullscreen:Boolean;
+		
+		/**
+		 * 获取全屏标识 
+		 * @return 全屏标识
+		 * 
+		 */		
+		public function get fullscreen():Boolean
+		{
+			return _fullscreen;
+		}
+		
+		/**
+		 * 设置全屏标识 
+		 * @param value 全屏标识
+		 * 
+		 */		
+		public function set fullscreen(value:Boolean):void
+		{
+			_fullscreen = value;
+			
+			var notif:SystemNotification = new SystemNotification(SystemNotification.FULL_SCREEN, _fullscreen);
+			this.postNotification(notif);
+		}
 		
 		/**
 		 * 获取系统数据库 

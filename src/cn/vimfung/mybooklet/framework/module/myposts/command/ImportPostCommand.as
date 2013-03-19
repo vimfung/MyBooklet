@@ -47,6 +47,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 		private var _facade:GNFacade = GNFacade.getInstance();
 		
 		private var _resourceDict:Dictionary;
+		private var _downloadQueue:Array;
 		private var _fileCount:int;
 		private var _downloadFileCount:int;
 		private var _content:String;
@@ -125,6 +126,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 			var tmpFile:File = null;
 			_fileCount = 0;
 			_resourceDict = new Dictionary();
+			_downloadQueue = new Array();
 
 			//查找所有图片和样式表路径，如果不是绝对路径则进行替换
 			var regexp:RegExp = new RegExp("\\s*(href\\s*=\\s*([\\'\\\"\\s]([^\\\"\\']*)[\\'\\\"]))","\g\i");
@@ -136,9 +138,8 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 				//判断是否为css或js脚本
 				if (StringUtil.hasSuffix(url.path, "[\\.](css|js)"))
 				{
-					_fileCount++;
 					tmpFile = tmpDir.resolvePath(StringUtil.lastPathComponent(url.path));
-					_resourceDict[urlString] = {source:targetString, format:"href=\"{0}\"", file:tmpFile}; 
+					_resourceDict[targetString] = {source:targetString, format:"href=\"{0}\"", file:tmpFile}; 
 				}
 				
 				return arguments[0].replace(arguments[1], targetString);
@@ -153,25 +154,22 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 				//判断是否为css或js脚本
 				if (StringUtil.hasSuffix(url.path, "[\\.](css|js|jpg|jpeg|png|bmp|gif)"))
 				{
-					_fileCount++;
 					tmpFile = tmpDir.resolvePath(StringUtil.lastPathComponent(url.path));
-					_resourceDict[urlString] = {source:targetString, format:"src=\"{0}\"", file:tmpFile};
+					_resourceDict[targetString] = {source:targetString, format:"src=\"{0}\"", file:tmpFile};
 				}
 
 				return arguments[0].replace(arguments[1], targetString);
 			});
 			
-			if (_fileCount > 0)
+			for (var i:String in _resourceDict)
+			{
+				_downloadQueue.push(i);
+			}
+			
+			if (_downloadQueue.length > 0)
 			{
 				//下载资源文件
-				_downloadFileCount = 0;
-				for (var i:String in _resourceDict)
-				{
-					var downloader:FileDownloader = new FileDownloader(i, _resourceDict[i].file);
-					downloader.addEventListener(Event.COMPLETE, downloadCompleteHandler);
-					downloader.addEventListener(IOErrorEvent.IO_ERROR, downloadErrorHandler);
-					downloader.start();
-				}
+				_fileCount = _downloadQueue.length;
 				
 				var progressInfo:ProgressInfo = new ProgressInfo();
 				progressInfo.progress = 1;
@@ -179,6 +177,8 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 				
 				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_PROGRESS, progressInfo);
 				_facade.postNotification(notif);
+				
+				this.downloadNextFile();
 			}
 			else
 			{
@@ -198,26 +198,15 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 			event.target.removeEventListener(Event.COMPLETE, downloadCompleteHandler);
 			event.target.removeEventListener(IOErrorEvent.IO_ERROR, downloadErrorHandler);
 			
-			_downloadFileCount++;
+			//派发进度事件
+			var progressInfo:ProgressInfo = new ProgressInfo();
+			progressInfo.progress = 1 + _fileCount - _downloadQueue.length;
+			progressInfo.total = 1 + _fileCount;
 			
-			var notif:PostNotification = null;
+			var notif:PostNotification = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_PROGRESS, progressInfo);
+			_facade.postNotification(notif);
 			
-			if (_downloadFileCount == _fileCount)
-			{
-				//派发完成事件
-				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_SUCCESS, {"content" : _content, "files": _resourceDict});
-				_facade.postNotification(notif);
-			}
-			else 
-			{
-				//派发进度事件
-				var progressInfo:ProgressInfo = new ProgressInfo();
-				progressInfo.progress = 1 + _downloadFileCount;
-				progressInfo.total = 1 + _fileCount;
-				
-				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_PROGRESS, progressInfo);
-				_facade.postNotification(notif);
-			}
+			this.downloadNextFile();
 		}
 		
 		/**
@@ -230,24 +219,35 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 			event.target.removeEventListener(Event.COMPLETE, downloadCompleteHandler);
 			event.target.removeEventListener(IOErrorEvent.IO_ERROR, downloadErrorHandler);
 			
-			_downloadFileCount++;
+			//派发进度事件
+			var progressInfo:ProgressInfo = new ProgressInfo();
+			progressInfo.progress = 1 + _fileCount - _downloadQueue.length;
+			progressInfo.total = 1 + _fileCount;
 			
-			var notif:PostNotification = null;
+			var notif:PostNotification = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_PROGRESS, progressInfo);
+			_facade.postNotification(notif);
 			
-			if (_downloadFileCount == _fileCount)
+			this.downloadNextFile();
+		}
+		
+		/**
+		 * 下载下一个文件 
+		 * 
+		 */		
+		private function downloadNextFile():void
+		{
+			if (_downloadQueue.length > 0)
+			{
+				var key:String = _downloadQueue.shift();
+				var downloader:FileDownloader = new FileDownloader(key, _resourceDict[key].file);
+				downloader.addEventListener(Event.COMPLETE, downloadCompleteHandler);
+				downloader.addEventListener(IOErrorEvent.IO_ERROR, downloadErrorHandler);
+				downloader.start();
+			}
+			else
 			{
 				//派发完成事件
-				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_SUCCESS, {"content" : _content, "files": _resourceDict});
-				_facade.postNotification(notif);
-			}
-			else 
-			{
-				//派发进度事件
-				var progressInfo:ProgressInfo = new ProgressInfo();
-				progressInfo.progress = 1 + _downloadFileCount;
-				progressInfo.total = 1 + _fileCount;
-				
-				notif = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_PROGRESS, progressInfo);
+				var notif:PostNotification = new PostNotification(PostNotification.IMPORT_URL_POST_LOAD_SUCCESS, {"content" : _content, "files": _resourceDict});
 				_facade.postNotification(notif);
 			}
 		}

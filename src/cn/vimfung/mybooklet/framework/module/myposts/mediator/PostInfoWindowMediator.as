@@ -70,7 +70,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 				case PostNotification.IMPORT_URL_POST_LOAD_PROGRESS:
 				{
 					var progressInfo:ProgressInfo = notification.getBody() as ProgressInfo;
-					postInfoWindow.setProgress(progressInfo.progress, progressInfo.total);
+					postInfoWindow.setProgress(progressInfo.total, progressInfo.progress);
 					break;
 				}
 				case PostNotification.IMPORT_URL_POST_LOAD_SUCCESS:

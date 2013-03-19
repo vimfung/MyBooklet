@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:ui="cn.vimfung.mybooklet.framework.module.myposts.ui.*">
+	
+	<fx:Script>
+		<![CDATA[
+			/**
+			 * HTML内容加载完成
+			 * 
+			 * @param	event	事件
+			 * */
+			protected function htmlContentCompleteHandler(event:Event):void
+			{
+				// TODO Auto-generated method stub
+				toolbarGroup.visible = true;
+				if (htmlContent.height < htmlContent.contentHeight)
+				{
+					toolbarGroup.paddingRight = 15;
+				}
+				else
+				{
+					toolbarGroup.paddingRight = 0;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<mx:HTML id="htmlContent" complete="htmlContentCompleteHandler(event)" width="100%" height="100%" borderColor="0xE1E1E1" borderVisible="true" borderStyle="solid" />
+	<s:HGroup id="toolbarGroup" horizontalAlign="right" width="100%" visible="false" paddingRight="15">
+		<ui:PostContentToolbar id="contentToolbar" />
+	</s:HGroup>
+</s:Group>

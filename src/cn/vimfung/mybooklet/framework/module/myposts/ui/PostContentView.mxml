@@ -1,20 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
 		  xmlns:s="library://ns.adobe.com/flex/spark" 
-		  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" gap="2">
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" 
+		  height="100%" 
+		  gap="2" 
+		  xmlns:ui="cn.vimfung.mybooklet.framework.module.myposts.ui.*">
 	<fx:Declarations>
 		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
 	</fx:Declarations>
 	<fx:Script>
 		<![CDATA[
+			import cn.vimfung.air.html.Selection;
 			import cn.vimfung.mybooklet.framework.GNFacade;
 			import cn.vimfung.mybooklet.framework.module.myposts.model.AttachmentInfo;
 			
+			import mx.core.FlexGlobals;
 			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
 			
 			import spark.events.GridSelectionEvent;
 			
 			private var _facade:GNFacade = GNFacade.getInstance();
+			private var _menu:NativeMenu;
 			
 			/**
 			 * 备份时间标签函数
@@ -70,13 +78,56 @@
 				}
 			}
 			
+			/**
+			 * 创建完成事件
+			 * 
+			 * @param	event	事件
+			 * */
+			/* protected function postContentViewCreationCompleteHandler(event:FlexEvent):void
+			{
+				_menu = new NativeMenu();
+				
+				var menuItem:NativeMenuItem = new NativeMenuItem("Demo");
+				_menu.addItem(menuItem);
+			} */
+			
+			/**
+			 * HTML内容加载成功
+			 * 
+			 * @param	event	事件
+			 * */
+			/* protected function htmlContentCompleteHandler(event:Event):void
+			{
+				// TODO Auto-generated method stub
+				htmlContent.htmlLoader.window.document.body.oncontextmenu = contextMenuHandler;
+			} */
+
+			/**
+			 * 菜单事件
+			 * 
+			 * 
+			 * */
+			/* private function contextMenuHandler(event:*):void
+			{
+				event.preventDefault();
+				
+				var selection:Selection = new Selection(htmlContent.htmlLoader.window);
+				
+				trace(selection.content);
+				
+				var point:Point = new Point(event.clientX, event.clientY);
+				point = this.localToGlobal(point);
+				
+				_menu.display(FlexGlobals.topLevelApplication.nativeWindow.stage, point.x, point.y);
+			} */
+			
 		]]>
 	</fx:Script>
 	<s:states>
 		<s:State name="Normal" />
 		<s:State name="AttachPost" />
 	</s:states>
-	<mx:HTML id="htmlContent" width="100%" height="100%" borderColor="0xE1E1E1" borderVisible="true" borderStyle="solid" />
+	<ui:PostContentContainer id="contentContainer" width="100%" height="100%" />
 	<s:Label includeIn="AttachPost" text="===== 附件 =====" width="100%" textAlign="center" fontFamily="Lantingqianhei" />
 	<s:DataGrid id="gridAttachment" 
 				includeIn="AttachPost"

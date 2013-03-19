@@ -122,6 +122,10 @@
 	<s:layout>
 		<s:HorizontalLayout paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5"/>
 	</s:layout>
-	<ui1:PostListView id="listView" />
+	<s:states>
+		<s:State name="Normal" />
+		<s:State name="FullScreen" />
+	</s:states>
+	<ui1:PostListView id="listView" excludeFrom="FullScreen" />
 	<ui1:PostContentView id="postContentView" />
 </s:Module>

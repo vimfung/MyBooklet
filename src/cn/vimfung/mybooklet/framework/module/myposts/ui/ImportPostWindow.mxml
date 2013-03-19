@@ -192,14 +192,6 @@
 				
 			}
 			
-			protected function previewContentCompleteHandler(event:Event):void
-			{
-				// TODO Auto-generated method stub
-				previewContent.htmlLoader.window.document.documentElement.focus();
-				//previewContent.htmlLoader.window.document.documentElement.select();
-				trace(previewContent.htmlLoader.window.document.documentElement.outerHTML);
-			}
-			
 		]]>
 	</fx:Script>
 	<s:states>
@@ -215,7 +207,7 @@
 		<s:Button includeIn="FileSystem" label="浏览..." click="viewButtonClickHandler(event)" />
 		<s:Button label="预览" click="previewButtonClickHandler(event)" />
 	</s:HGroup>
-	<mx:HTML id="previewContent" complete="previewContentCompleteHandler(event)" width="100%" height="100%" borderColor="0xE1E1E1" borderVisible="true" borderStyle="solid"/>
+	<mx:HTML id="previewContent" width="100%" height="100%" borderColor="0xE1E1E1" borderVisible="true" borderStyle="solid"/>
 	<s:controlBarLayout>
 		<s:HorizontalLayout verticalAlign="middle" paddingTop="3" paddingBottom="3" horizontalAlign="center" />
 	</s:controlBarLayout>

@@ -28,5 +28,19 @@ package cn.vimfung.mybooklet.framework.module.myposts
 		 * 
 		 */	
 		function get contentView():PostContentView;
+		
+		/**
+		 * 获取当前视图状态 
+		 * @return 视图状态
+		 * 
+		 */		
+		function get currentState():String;
+		
+		/**
+		 * 设置当前视图状态 
+		 * @param value 视图状态
+		 * 
+		 */		
+		function set currentState(value:String):void;
 	}
 }

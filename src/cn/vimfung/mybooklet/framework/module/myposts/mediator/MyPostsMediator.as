@@ -14,6 +14,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 	import cn.vimfung.mybooklet.framework.module.myposts.model.TagPostListState;
 	import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
 	import cn.vimfung.mybooklet.framework.module.myposts.proxy.MyPostsProxy;
+	import cn.vimfung.mybooklet.framework.notification.SystemNotification;
 	import cn.vimfung.utils.Encode;
 	
 	import flash.filesystem.File;
@@ -25,11 +26,14 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 	import flash.utils.ByteArray;
 	
 	import mx.collections.ArrayCollection;
+	import mx.controls.HTML;
 	import mx.utils.StringUtil;
 	
 	import org.puremvc.as3.interfaces.IMediator;
 	import org.puremvc.as3.interfaces.INotification;
 	import org.puremvc.as3.patterns.mediator.Mediator;
+	
+	import spark.components.HGroup;
 	
 	/**
 	 * 我的文章访问器 
@@ -160,7 +164,8 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 			return [PostNotification.BEGIN_REFRESH_LIST,
 				PostNotification.UPDATE_POST,
 				PostNotification.DELETE_POST,
-				PostNotification.ADD_POST];
+				PostNotification.ADD_POST,
+				SystemNotification.FULL_SCREEN];
 		}
 		
 		/**
@@ -212,6 +217,21 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 					//同步文章列表
 					this.addPostByLatestList(notification.getBody());
 					this.addTagPost(notification.getBody());
+					break;
+				}
+				case SystemNotification.FULL_SCREEN:
+				{
+					//全屏
+					if (notification.getBody())
+					{
+						_myPostsModule.currentState = "FullScreen";
+						_myPostsModule.contentView.contentContainer.contentToolbar.currentState = "FullScreen";
+					}
+					else
+					{
+						_myPostsModule.currentState = "Normal";
+						_myPostsModule.contentView.contentContainer.contentToolbar.currentState = "Normal";
+					}
 					break;
 				}
 			}
@@ -350,7 +370,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 			_token.removeEventListener(PostEvent.GET_POST_RESULT, getPostResultHandler);
 			_token.removeEventListener(PostEvent.GET_POST_ERROR, getPostErrorHandler);
 			
-			var contentString:String = "";
+			var contentString:String = null;
 			if(event.postInfo != null)
 			{
 				var tagString:String = "";
@@ -371,8 +391,9 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 				contentString = "<div style='margin:10px 10px 0px 10px;font-family:微软雅黑;font-size:14px;' >" + postInfo.title + "<div>" + tagString + "</div><hr style='clear:both;border:none;border-bottom:1px dashed #E1E1E1;' /></div><div style='margin:5px 10px 10px 10px;clear:both;font-family:Lantingqianhei;微软雅黑;'>" + postInfo.content + "</div>";
 			}
 
-			_myPostsModule.contentView.htmlContent.htmlLoader.placeLoadStringContentInApplicationSandbox = true;
-			_myPostsModule.contentView.htmlContent.htmlText = contentString;
+			var htmlContentView:HTML = _myPostsModule.contentView.contentContainer.htmlContent;
+			htmlContentView.htmlLoader.placeLoadStringContentInApplicationSandbox = true;
+			htmlContentView.htmlText = contentString;
 			
 			if(event.attachments != null)
 			{
@@ -454,7 +475,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 			event.target.removeEventListener(PostEvent.REMOVE_POST_ERROR, removePostErrorHandler);
 			
 			//清空内容面板
-			_myPostsModule.contentView.htmlContent.htmlText = "";
+			_myPostsModule.contentView.contentContainer.htmlContent.htmlText = "";
 			
 			//派发删除文章通知
 			var notif:PostNotification = new PostNotification(PostNotification.DELETE_POST, event.postInfo);

@@ -44,7 +44,8 @@ package cn.vimfung.mybooklet.framework.mediator
 		 */		
 		public override function listNotificationInterests():Array
 		{
-			return [SystemNotification.MAIN_MODULES_UPDATE];
+			return [SystemNotification.MAIN_MODULES_UPDATE,
+					SystemNotification.FULL_SCREEN];
 		}
 		
 		/**
@@ -55,6 +56,7 @@ package cn.vimfung.mybooklet.framework.mediator
 			switch(notification.getName())
 			{
 				case SystemNotification.MAIN_MODULES_UPDATE:
+				{
 					this.view.navigationBar.dataProvider = new ArrayCollection((this.facade as GNFacade).mainModuleList);
 					if(this.view.navigationBar.selectedIndex == -1)
 					{
@@ -65,6 +67,21 @@ package cn.vimfung.mybooklet.framework.mediator
 						gnFacade.postNotification(systemNotification);
 					}
 					break;
+				}
+				case SystemNotification.FULL_SCREEN:
+				{
+					if (notification.getBody())
+					{
+						//全屏模式
+						this.view.currentState = "FullScreen";
+					}
+					else
+					{
+						//普通模式
+						this.view.currentState = "Normal";
+					}
+					break;
+				}
 			}
 		}
 	}
