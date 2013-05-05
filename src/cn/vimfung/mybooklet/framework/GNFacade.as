@@ -8,7 +8,6 @@ package cn.vimfung.mybooklet.framework
 	import cn.vimfung.mybooklet.framework.command.SystemStartupCommand;
 	import cn.vimfung.mybooklet.framework.db.DocumentDatabase;
 	import cn.vimfung.mybooklet.framework.db.SystemDatabase;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.notification.SystemNotification;
 	import cn.vimfung.mybooklet.framework.patch.ImportUsedTagPatch;
 	
@@ -42,7 +41,17 @@ package cn.vimfung.mybooklet.framework
 			var notification:SystemNotification = new SystemNotification(SystemNotification.STARTUP);
 			this.postNotification(notification);
 		}
+		
+		/**
+		 * 检测版本标识 
+		 */		
+		public static const CHECK_VER_FLAG:String = "CHECK_VER_FLAG";
 
+		/**
+		 * 最后一次检测版本时间 
+		 */		
+		public static const LAST_CHECK_VER_TIME:String = "LAST_CHECK_VER_TIME";
+		
 		/**
 		 * 获取共享前置器实例 
 		 * @return 前置器对象
@@ -63,6 +72,48 @@ package cn.vimfung.mybooklet.framework
 		private var _mainModuleList:Array;
 		
 		private var _fullscreen:Boolean;
+		private var _checkVerFlag:Number;		//版本更新通知：-1 从不  0 每次  1 每小时  2 每天 3 每月 4 每三个月
+		private var _lastCheckVerTime:Number;	//最后一次版本检测时间。
+		
+		/**
+		 * 获取版本更新通知标识
+		 * @return 更新通知标识
+		 * 
+		 */		
+		public function get checkVerFlag():Number
+		{
+			return _checkVerFlag;
+		}
+		
+		/**
+		 * 设置版本更新通知标识
+		 * @param value 更新通知标识
+		 * 
+		 */		
+		public function set checkVerFlag(value:Number):void
+		{
+			_checkVerFlag = value;
+		}
+
+		/**
+		 * 获取最后一次版本检测时间 
+		 * @return 检测时间（单位毫秒）
+		 * 
+		 */		
+		public function get lastCheckVerTime():Number
+		{
+			return _lastCheckVerTime;
+		}
+		
+		/**
+		 * 设置最后一次版本检测时间
+		 * @param value 检测时间（单位毫秒）
+		 * 
+		 */		
+		public function set lastCheckVerTime(value:Number):void
+		{
+			_lastCheckVerTime = value;
+		}
 		
 		/**
 		 * 获取全屏标识 

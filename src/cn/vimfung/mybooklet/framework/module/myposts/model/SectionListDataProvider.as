@@ -78,6 +78,22 @@ package cn.vimfung.mybooklet.framework.module.myposts.model
 		}
 		
 		/**
+		 * 获取展开状态的单元数据长度
+		 * @param section 小节对象
+		 * @return 数据长度
+		 * 
+		 */		
+		public function getExpandSectionDataLength(section:Object):int
+		{
+			var keyName:String = this.convertSectionName(section);
+			if(_sectionFlags[keyName] && _source[keyName] != null)
+			{
+				return (_source[keyName] as Array).length;
+			}
+			return 0;
+		}
+		
+		/**
 		 * 获取单元数据长度 
 		 * @param section 小节对象
 		 * @return 数据长度
@@ -86,7 +102,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.model
 		public function getSectionDataLength(section:Object):int
 		{
 			var keyName:String = this.convertSectionName(section);
-			if(_sectionFlags[keyName] && _source[keyName] != null)
+			if(_source[keyName] != null)
 			{
 				return (_source[keyName] as Array).length;
 			}

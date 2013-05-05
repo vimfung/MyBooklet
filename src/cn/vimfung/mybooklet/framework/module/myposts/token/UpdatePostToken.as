@@ -1,8 +1,9 @@
 package cn.vimfung.mybooklet.framework.module.myposts.token
 {
+	import cn.vimfung.common.db.SqliteDatabaseEvent;
+	import cn.vimfung.common.db.SqliteDatabaseToken;
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
+	import cn.vimfung.mybooklet.framework.Utils;
 	import cn.vimfung.mybooklet.framework.model.ProgressInfo;
 	import cn.vimfung.mybooklet.framework.module.myposts.Constant;
 	import cn.vimfung.mybooklet.framework.module.myposts.events.PostEvent;
@@ -50,6 +51,11 @@ package cn.vimfung.mybooklet.framework.module.myposts.token
 			_title = title;
 			_content = content;
 			_tags = tags;
+			if(_tags != null && StringUtil.trim(_tags) != "")
+			{
+				_tagsArray = _tags.split(";");
+				_tagsArray = Utils.filterTags(_tagsArray);
+			}
 			_attachments = attachments;
 			_dealAttachCount = 0;
 			_files = files;
@@ -75,7 +81,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.token
 		private var _title:String;
 		private var _content:String;
 		private var _tags:String;
-		
+		private var _tagsArray:Array;
 		private var _token:SqliteDatabaseToken;
 		private var _attachCount:int;
 		private var _dealAttachCount:int;
@@ -111,7 +117,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.token
 			var params:Dictionary = new Dictionary();
 			params[":title"] = _title;
 			params[":content"] = _content;
-			params[":tags"] = _tags;
+			params[":tags"] = _tagsArray == null ? "" : _tagsArray.join(";");
 			params[":modifyTime"] = new Date();
 			params[":id"] = _id;
 			
@@ -153,18 +159,23 @@ package cn.vimfung.mybooklet.framework.module.myposts.token
 		 */		
 		private function updateUsedTags():void
 		{
+			//删除标签关系
+			var params:Dictionary = new Dictionary();
+			params[":noteId"] = _id;
+			var delToken:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("DELETE FROM notes_tag_set WHERE noteId = :noteId", params);
+			delToken.startSync();
+			
 			//更新标签库
-			if(_tags != null && StringUtil.trim(_tags) != "")
+			if(_tagsArray != null)
 			{
-				var tagArray:Array = _tags.split(";");
-				for(var i:int = 0; i < tagArray.length; i++)
+				for(var i:int = 0; i < _tagsArray.length; i++)
 				{
 					//查询是否存在标签
-					var params:Dictionary = new Dictionary();
-					params[":name"] = tagArray[i];
+					params = new Dictionary();
+					params[":name"] = _tagsArray[i];
 					
 					var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT * FROM notes_tag WHERE name = :name", params);
-					token.userData = tagArray[i];
+					token.userData = _tagsArray[i];
 					token.addEventListener(SqliteDatabaseEvent.RESULT, existsTagResultHandler);
 					token.addEventListener(SqliteDatabaseEvent.ERROR, existsTagErrorHandler);
 					token.start();
@@ -183,14 +194,17 @@ package cn.vimfung.mybooklet.framework.module.myposts.token
 			token.addEventListener(SqliteDatabaseEvent.RESULT, existsTagResultHandler);
 			token.addEventListener(SqliteDatabaseEvent.ERROR, existsTagErrorHandler);
 			
+			var tagId:Number = 0;
 			var params:Dictionary = null;
 			var data:Array = event.recordset;
 			if(data != null && data.length > 0)
 			{
 				//标签已存在
+				tagId = data[0].id;
+				
 				params = new Dictionary();
 				params[":latestTime"] = new Date();
-				params[":id"] = data[0].id;
+				params[":id"] = tagId;
 				
 				token = _facade.documentDatabase.createCommandToken("UPDATE notes_tag SET useCount = useCount + 1, latestTime = :latestTime WHERE id = :id", params);
 				token.start();
@@ -206,8 +220,17 @@ package cn.vimfung.mybooklet.framework.module.myposts.token
 				params[":fpinyin"] = Chinese2Spell.makeSpellCode(token.userData, SpellOptions.FirstLetterOnly);
 				
 				token = _facade.documentDatabase.createCommandToken("INSERT INTO notes_tag(name, createTime, latestTime, useCount, pinyin, fpinyin) VALUES(:name, :createTime, :latestTime, 1, :pinyin, :fpinyin)", params);
-				token.start();
+				token.startSync();
+				
+				tagId = _facade.documentDatabase.lastInsertRowID;
 			}
+			
+			//写入标签关系
+			params = new Dictionary();
+			params[":tagId"] = tagId;
+			params[":noteId"] = _id;
+			token = _facade.documentDatabase.createCommandToken("INSERT INTO notes_tag_set(tagId, noteId) VALUES(:tagId, :noteId)", params);
+			token.start();
 		}
 		
 		/**

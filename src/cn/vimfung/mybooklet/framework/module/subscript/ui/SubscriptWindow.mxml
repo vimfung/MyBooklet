@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 	 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 	 xmlns:mx="library://ns.adobe.com/flex/mx" 
+			 title="订阅"
+			 fontFamily="Lantingqianhei"
+			 creationComplete="creationCompleteHandler(event)"
+			 width="640"
+			 height="480">
+	
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.common.db.SqliteDatabaseEvent;
+			import cn.vimfung.common.db.SqliteDatabaseToken;
+			import cn.vimfung.common.rss.Rss;
+			import cn.vimfung.common.rss.RssItem;
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.utils.StringUtil;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			
+			private var _rssListArray:ArrayCollection = new ArrayCollection();
+			
+			public function removeItem(data:Object):void
+			{
+				var index:int = _rssListArray.getItemIndex(data);
+				if (index != -1)
+				{
+					_rssListArray.removeItemAt(index);
+					rssList.dataProvider = _rssListArray;
+				}
+			}
+			
+			/**
+			 * 确定按钮点击
+			 * 
+			 * @param event	事件
+			 * */
+			protected function okButtonClickHandler(event:MouseEvent):void
+			{
+				//保存修改
+				_facade.documentDatabase.beginTrans();
+				try
+				{
+					var subscriptIds:String = null;
+					
+					for (var i:int = 0; i < _rssListArray.length; i++)
+					{
+						var item:Object = _rssListArray[i];
+						if (item.issubscript > 0)
+						{
+							if (subscriptIds == null)
+							{
+								subscriptIds = item.id;
+							}
+							else
+							{
+								subscriptIds += "," + item.id;
+							}
+							
+							//判断是否已订阅
+							var params:Dictionary = new Dictionary();
+							params[":rssId"] = item.id;
+							delete params[":createTime"];
+							
+							var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT rssId FROM subscripts WHERE rssId = :rssId", params);
+							var result:SQLResult = token.startSync();
+							if (result == null || result.data == null || (result.data != null && result.data.length == 0))
+							{
+								params[":createTime"] = new Date();
+								token = _facade.documentDatabase.createCommandToken("INSERT INTO subscripts(rssId, createTime) VALUES(:rssId, :createTime)", params);
+								token.startSync();
+							}
+						}
+					}
+					
+					if (subscriptIds != null)
+					{
+						//删除取消订阅源
+						var cancelSubscriptToken:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("DELETE FROM subscripts WHERE rssId NOT IN (" + subscriptIds + ")");
+						cancelSubscriptToken.startSync();
+					}
+
+					_facade.documentDatabase.commitTrans();
+				}
+				catch(err:Error)
+				{
+					_facade.documentDatabase.rollbackTrans();
+				}
+				
+				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
+				e.detail = Alert.OK;
+				this.dispatchEvent(e);
+			}
+			
+			/**
+			 * 取消按钮点击事件
+			 * 
+			 * @param event 事件
+			 * */
+			protected function cancelButtonClickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
+				e.detail = Alert.CANCEL;
+				this.dispatchEvent(e);
+			}
+			
+			/**
+			 * 添加按钮点击事件
+			 * 
+			 * @param event 事件
+			 * */
+			protected function addButtonClickHandler(event:MouseEvent):void
+			{
+				if (StringUtil.trim(urlTextInput.text) == "")
+				{
+					_facade.alert("订阅路径不能为空!");
+				}
+				else
+				{
+					//检测是否已存在该订阅源
+					var params:Dictionary = new Dictionary();
+					params[":url"] = urlTextInput.text;
+					
+					var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT * FROM rss_list WHERE url = :url", params);
+					var result:SQLResult = token.startSync();
+					
+					if (result != null && result.data != null && result.data.length > 0)
+					{
+						_facade.alert("该订阅源已添加!");
+					}
+					else
+					{
+						var rss:Rss = new Rss();
+						rss.load(urlTextInput.text);
+						rss.addEventListener(Event.COMPLETE, loadRssCompleteHandler);
+						rss.addEventListener(IOErrorEvent.IO_ERROR, loadRssIOErrorHandler);
+						
+						urlTextInput.editable = false;
+						addButton.enabled = false;
+						addButton.label = "加载中...";
+					}
+				}
+			}
+			
+			/**
+			 * 加载RSS完成事件
+			 * 
+			 * @param event 事件
+			 * */
+			private function loadRssCompleteHandler(event:Event):void
+			{
+				event.target.removeEventListener(Event.COMPLETE, loadRssCompleteHandler);
+				event.target.removeEventListener(IOErrorEvent.IO_ERROR, loadRssIOErrorHandler);
+				
+				//写入数据库
+				var rss:Rss = event.target as Rss;
+				var params:Dictionary = new Dictionary();
+				params[":title"] = rss.title;
+				params[":link"] = rss.link;
+				params[":desc"] = rss.description;
+				params[":image"] = rss.image.url;
+				params[":url"] = urlTextInput.text;
+				params[":createTime"] = new Date();
+				params[":updateTime"] = params[":createTime"];
+				
+				var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("INSERT INTO rss_list(title, link, desc, image, url, createTime, updateTime) VALUES(:title, :link, :desc, :image, :url, :createTime, :updateTime)", params);
+				token.addEventListener(SqliteDatabaseEvent.RESULT, function(event:SqliteDatabaseEvent):void{
+					var rssId:Number = _facade.documentDatabase.lastInsertRowID;
+					
+					var newRssItem:Object = new Object();
+					newRssItem.id = rssId;
+					newRssItem.title = rss.title;
+					newRssItem.link = rss.link;
+					newRssItem.desc = rss.description;
+					newRssItem.image = rss.image.url;
+					newRssItem.url = urlTextInput.text;
+					
+					_rssListArray.addItemAt(newRssItem,0);
+					rssList.dataProvider = _rssListArray;
+					
+					urlTextInput.editable = true;
+					urlTextInput.text = "";
+					addButton.enabled = true;
+					addButton.label = "添加";
+					
+					//记录获取的订阅记录数据
+					_facade.documentDatabase.beginTrans();
+					try
+					{
+						//检测记录唯一性
+						for (var i:int = 0; i < rss.items.length; i++)
+						{
+							var item:RssItem = rss.items[i];
+							var params:Dictionary = new Dictionary();
+							params[":rssId"] = rssId;
+							params[":link"] = item.link;
+							var checkToken:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT id FROM rss_items WHERE rssId = :rssId AND link = :link", params);
+							var result:SQLResult = checkToken.startSync();
+							if (result == null || result.data == null || (result.data != null && result.data.length == 0))
+							{
+								params = new Dictionary();
+								params[":rssId"] = rssId;
+								params[":title"] = item.title;
+								params[":link"] = item.link;
+								params[":category"] = item.category;
+								params[":description"] = item.description;
+								params[":pubDate"] = item.pubDate;
+								params[":author"] = item.author;
+								params[":comments"] = item.comments;
+								params[":source"] = item.source;
+								
+								var insertToken:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("INSERT INTO rss_items(rssId, title, link, category, description, pubDate, author, comments, source) VALUES(:rssId, :title, :link, :category, :description, :pubDate, :author, :comments, :source)", params);
+								insertToken.startSync();
+							}
+						}
+						
+						_facade.documentDatabase.commitTrans();	
+					}
+					catch(err:Error)
+					{
+						_facade.documentDatabase.rollbackTrans();
+					}
+				});
+				token.start();
+			}
+			
+			/**
+			 * 加载RSS失败事件
+			 * 
+			 * @param event 事件
+			 * */
+			private function loadRssIOErrorHandler(event:IOErrorEvent):void
+			{
+				event.target.removeEventListener(Event.COMPLETE, loadRssCompleteHandler);
+				event.target.removeEventListener(IOErrorEvent.IO_ERROR, loadRssIOErrorHandler);
+				
+				urlTextInput.editable = true;
+				addButton.enabled = true;
+				addButton.label = "添加";
+				
+				_facade.alert("加载源失败!" + event.text);
+			}
+			
+			/**
+			 * 创建完成事件
+			 * 
+			 * @param event 事件
+			 * */
+			protected function creationCompleteHandler(event:FlexEvent):void
+			{
+				//获取登录的RSS列表
+				var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT DISTINCT rl.*, ifnull(s.rssId, 0) as issubscript FROM rss_list rl LEFT JOIN subscripts s ON rl.id = s.rssId ORDER BY rl.createTime DESC");
+				token.addEventListener(SqliteDatabaseEvent.RESULT, getRssListResultHandler);
+				token.addEventListener(SqliteDatabaseEvent.ERROR, getRssListErrorHandler);
+				token.start();
+			}
+			
+			
+			
+			/**
+			 * 获取RSS列表返回
+			 * 
+			 * @param event 事件
+			 * */
+			private function getRssListResultHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, getRssListResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.ERROR, getRssListErrorHandler);
+				
+				if (event.recordset != null)
+				{
+					_rssListArray.addAll(new ArrayCollection(event.recordset));
+					rssList.dataProvider = _rssListArray;
+				}
+			}	
+			
+			/**
+			 * 获取RSS列表失败
+			 * 
+			 * @param event 事件
+			 * */
+			private function getRssListErrorHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, getRssListResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.ERROR, getRssListErrorHandler);
+				
+				_facade.alert("加载订阅列表异常!" + event.error.message);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:layout>
+		<s:VerticalLayout gap="5" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" />
+	</s:layout>
+	<s:HGroup width="100%" verticalAlign="middle">
+		<s:Label text="rss:" />
+		<s:TextInput id="urlTextInput" width="100%" borderColor="0xE1E1E1" height="33" />
+		<s:Button id="addButton" label="添加" skinClass="cn.vimfung.mybooklet.framework.module.setting.ui.GrayButtonSkin" width="80" height="33" click="addButtonClickHandler(event)" />
+	</s:HGroup>
+	<s:List id="rssList" itemRenderer="cn.vimfung.mybooklet.framework.module.subscript.ui.RssItemRenderer" width="100%" height="100%" borderColor="0xE1E1E1">
+		<s:layout>
+			<s:TileLayout columnWidth="200" rowHeight="160" paddingBottom="3" paddingLeft="3" paddingRight="3" paddingTop="3" horizontalGap="3" verticalGap="3" />
+		</s:layout>
+	</s:List>
+	<s:controlBarLayout>
+		<s:HorizontalLayout gap="5" paddingBottom="3" paddingTop="3" horizontalAlign="center" />
+	</s:controlBarLayout>
+	<s:controlBarContent>
+		<s:Button label="确定" click="okButtonClickHandler(event)" />
+		<s:Button label="取消" click="cancelButtonClickHandler(event)" />
+	</s:controlBarContent>
+</s:TitleWindow>

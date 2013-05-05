@@ -1,8 +1,7 @@
 package cn.vimfung.mybooklet.framework.module.myposts.proxy
 {
+	import cn.vimfung.common.db.SqliteDatabaseToken;
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.module.myposts.PostToken;
 	import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
 	import cn.vimfung.mybooklet.framework.module.myposts.token.CreatePostToken;

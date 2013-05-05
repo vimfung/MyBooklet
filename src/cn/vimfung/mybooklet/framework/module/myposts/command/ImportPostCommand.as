@@ -139,7 +139,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 				if (StringUtil.hasSuffix(url.path, "[\\.](css|js)"))
 				{
 					tmpFile = tmpDir.resolvePath(StringUtil.lastPathComponent(url.path));
-					_resourceDict[targetString] = {source:targetString, format:"href=\"{0}\"", file:tmpFile}; 
+					_resourceDict[url.absoluteString] = {source:targetString, format:"href=\"{0}\"", file:tmpFile}; 
 				}
 				
 				return arguments[0].replace(arguments[1], targetString);
@@ -155,7 +155,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.command
 				if (StringUtil.hasSuffix(url.path, "[\\.](css|js|jpg|jpeg|png|bmp|gif)"))
 				{
 					tmpFile = tmpDir.resolvePath(StringUtil.lastPathComponent(url.path));
-					_resourceDict[targetString] = {source:targetString, format:"src=\"{0}\"", file:tmpFile};
+					_resourceDict[url.absoluteString] = {source:targetString, format:"src=\"{0}\"", file:tmpFile};
 				}
 
 				return arguments[0].replace(arguments[1], targetString);

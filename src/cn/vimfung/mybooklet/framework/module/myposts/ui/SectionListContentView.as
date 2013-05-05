@@ -120,7 +120,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.ui
 				for (var i:int = 0; i < _dataProvider.sectionCount; i++)
 				{
 					var section:Object = _dataProvider.getSection(i);
-					var count:int = _dataProvider.getSectionDataLength(section);
+					var count:int = _dataProvider.getExpandSectionDataLength(section);
 					var match:Boolean = false;
 					for (var j:int = 0; j < count; j ++)
 					{
@@ -362,7 +362,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.ui
 				
 				var hasOver:Boolean = false;
 				
-				sectionLength = _dataProvider.getSectionDataLength(_dataProvider.getSection(i));
+				sectionLength = _dataProvider.getExpandSectionDataLength(_dataProvider.getSection(i));
 				j = 0;
 				if (i == _visibleStartIndexPath.section)
 				{
@@ -418,7 +418,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.ui
 				}
 				else
 				{
-					sectionLength = _dataProvider.getSectionDataLength(_dataProvider.getSection(i));
+					sectionLength = _dataProvider.getExpandSectionDataLength(_dataProvider.getSection(i));
 				}
 				
 				for (; j < sectionLength; j++)
@@ -693,7 +693,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.ui
 				for (var i:int = 0; i <_dataProvider.sectionCount; i++)
 				{
 					var section:Object = _dataProvider.getSection(i);
-					rowCount += _dataProvider.getSectionDataLength(section);
+					rowCount += _dataProvider.getExpandSectionDataLength(section);
 					
 					_sectionMaping.push(rowCount);
 				}
@@ -734,7 +734,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.ui
 					{
 						//在此Section范围内,判断在哪一行中
 						_visibleStartIndexPath.section = i;
-						_visibleStartIndexPath.row = _dataProvider.getSectionDataLength(_dataProvider.getSection(i));
+						_visibleStartIndexPath.row = _dataProvider.getExpandSectionDataLength(_dataProvider.getSection(i));
 						if (_visibleStartIndexPath.row == 0)
 						{
 							_visibleStartIndexPath.row = -1;

@@ -10,8 +10,10 @@
 	</fx:Declarations>
 	<fx:Script>
 		<![CDATA[
+			import cn.vimfung.common.db.SqliteDatabaseToken;
 			import cn.vimfung.mybooklet.framework.GNFacade;
 			import cn.vimfung.mybooklet.framework.module.setting.mediator.BackupOrRestorePanelMediator;
+			import cn.vimfung.mybooklet.framework.notification.SystemNotification;
 			
 			import mx.controls.Alert;
 			import mx.controls.Menu;
@@ -20,6 +22,7 @@
 			import mx.events.MenuEvent;
 			
 			import spark.events.GridSelectionEvent;
+			import spark.events.IndexChangeEvent;
 			
 			private var _gnFacade:GNFacade = GNFacade.getInstance();
 			private var _mediator:BackupOrRestorePanelMediator;
@@ -121,6 +124,7 @@
 			protected function backupOrRestorePanelCreationCompleteHandler(event:FlexEvent):void
 			{
 				_mediator = new BackupOrRestorePanelMediator(this);
+				flagDropDownList.selectedIndex = _gnFacade.checkVerFlag + 1;
 				
 				_gnFacade.removeMediator(BackupOrRestorePanelMediator.NAME);
 				_gnFacade.registerMediator(_mediator);
@@ -210,9 +214,76 @@
 				event.target.removeEventListener(Event.CANCEL, cacelSelectFileHandler);
 			}
 			
+			/**
+			 * 设置配置项
+			 * */
+			private function setSettingValue(name:String, value:String):void
+			{
+				//保存设置
+				var params:Dictionary = new Dictionary();
+				params[":name"] = name;
+				
+				var token:SqliteDatabaseToken = _gnFacade.systemDatabase.createCommandToken("SELECT * FROM sys_setting WHERE name = :name", params);
+				var result:SQLResult = token.startSync();
+				
+				params[":value"] = value;
+				if (result.data == null || result.data.length == 0)
+				{
+					//添加配置项
+					token = _gnFacade.systemDatabase.createCommandToken("INSERT INTO sys_setting VALUES(:name, :value)", params);
+					token.startSync();
+				}
+				else
+				{
+					token = _gnFacade.systemDatabase.createCommandToken("UPDATE sys_setting SET value = :value WHERE name = :name", params);
+					token.startSync();
+				}
+			}
+			
+			/**
+			 * 变更更新检测标识
+			 * */
+			protected function flagDropDownListChangeHandler(event:IndexChangeEvent):void
+			{
+				_gnFacade.systemDatabase.setSetting(GNFacade.CHECK_VER_FLAG, String(flagDropDownList.selectedIndex - 1));
+			}
+			
+			/**
+			 * 检测版本按钮点击
+			 * 
+			 * @param event 事件
+			 * */
+			protected function checkVerClickHandler(event:MouseEvent):void
+			{
+				var notif:SystemNotification = new SystemNotification(SystemNotification.CHECK_VERSION, true);
+				_gnFacade.postNotification(notif);
+			}
+			
 		]]>
 	</fx:Script>
 	<s:VGroup width="100%" height="100%" fontFamily="Lantingqianhei">
+		<s:HGroup verticalAlign="middle">
+			<s:Label text="版本更新检测"/>
+			<s:DropDownList id="flagDropDownList" change="flagDropDownListChangeHandler(event)">
+				<s:dataProvider>
+					<s:ArrayCollection>
+						<fx:String>从不</fx:String>
+						<fx:String>每次</fx:String>
+						<fx:String>每小时</fx:String>
+						<fx:String>每天</fx:String>
+						<fx:String>每月</fx:String>
+						<fx:String>三个月</fx:String>
+					</s:ArrayCollection>
+				</s:dataProvider>
+			</s:DropDownList>
+			<s:Spacer width="15" />
+			<s:Button label="检测新版本" click="checkVerClickHandler(event)" />
+		</s:HGroup>
+		<s:Line width="100%">
+			<s:stroke>
+				<s:SolidColorStroke color="0xE1E1E1" weight="1" />
+			</s:stroke>
+		</s:Line>
 		<s:Label text="备份记录" />
 		<s:DataGrid id="dgBackupList" width="100%" height="100%" rollOverColor="0xF9F7F8" selectionColor="0xF9F7F8" borderColor="0xE1E1E1" >
 			<s:columns>

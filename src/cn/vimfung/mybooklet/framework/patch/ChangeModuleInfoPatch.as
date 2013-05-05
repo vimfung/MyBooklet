@@ -1,8 +1,8 @@
 package cn.vimfung.mybooklet.framework.patch
 {
+	import cn.vimfung.common.db.SqliteDatabaseToken;
 	import cn.vimfung.gnotes.kit.ISystemManager;
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
 	import cn.vimfung.mybooklet.framework.events.PatchEvent;
 	import cn.vimfung.mybooklet.framework.model.Module;
 	

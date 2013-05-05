@@ -70,7 +70,7 @@
 	<s:List borderColor="0xE1E1E1" rollOverColor="0xF9F7F8" selectionColor="0xF9F7F8" height="100%" width="330" change="listItemChange(event)" selectedIndex="0" fontFamily="Lantingqianhei">
 		<s:dataProvider>
 			<s:ArrayCollection>
-				<fx:String>数据备份/还原</fx:String>
+				<fx:String>基本设置</fx:String>
 				<fx:String>问题反馈</fx:String>
 				<fx:String>使用说明</fx:String>
 				<fx:String>关于MyBooklet</fx:String>

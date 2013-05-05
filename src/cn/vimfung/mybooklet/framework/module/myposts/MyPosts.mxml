@@ -15,8 +15,6 @@
 		<![CDATA[
 			import cn.vimfung.gnotes.kit.ISystemManager;
 			import cn.vimfung.mybooklet.framework.GNFacade;
-			import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
-			import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 			import cn.vimfung.mybooklet.framework.module.myposts.command.ImportPostCommand;
 			import cn.vimfung.mybooklet.framework.module.myposts.events.ColorFilterEvent;
 			import cn.vimfung.mybooklet.framework.module.myposts.mediator.MyPostsMediator;

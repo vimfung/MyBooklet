@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				autoDrawBackground="true" 
+				dataChange="itemDataChangeHandler(event)" 
+				creationComplete="itemDataChangeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.module.subscript.mediator.SubscriptMediator;
+			
+			import flashx.textLayout.conversion.TextConverter;
+			
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			
+			import spark.formatters.DateTimeFormatter;
+			import spark.utils.TextFlowUtil;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			private var _mediator:SubscriptMediator;
+			
+			[Embed(source="assets/gnote/sinchronize.png")]
+			private var _refreshIcon:Class;
+			
+			/**
+			 * 数据变更
+			 * 
+			 * @param event 事件
+			 * */
+			protected function itemDataChangeHandler(event:FlexEvent):void
+			{
+				if (this.initialized && this.data != null)
+				{
+					if (this.data is String)
+					{
+						this.currentState = "Refresh";
+					}
+					else
+					{
+						this.currentState = "RSS";
+						
+						titleLabel.text = this.data.title;
+						
+						var formatter:DateTimeFormatter = new DateTimeFormatter();
+						formatter.dateTimePattern = "yyyy-MM-dd HH:mm:ss";
+						pubdateLabel.text = "发布于:" + formatter.format(this.data.pubDate);
+						descriptRichText.width = this.contentWidth - 20;
+						descriptRichText.text = this.data.description;
+						
+						//判断是否为最后一条记录,并加载更多内容
+						if (_mediator == null)
+						{
+							_mediator = _facade.retrieveMediator(SubscriptMediator.NAME) as SubscriptMediator;
+						}
+						if (_mediator != null)
+						{
+							_mediator.subscript.getMore(this.data);
+						}
+					}
+				}
+			}
+			
+			/**
+			 * 刷新按钮点击
+			 * 
+			 * @param event 事件
+			 * */
+			protected function refreshClickHandler(event:MouseEvent):void
+			{
+				if (_mediator == null)
+				{
+					_mediator = _facade.retrieveMediator(SubscriptMediator.NAME) as SubscriptMediator;
+				}
+				if (_mediator != null)
+				{
+					refreshButton.label = "加载中...";
+					refreshButton.setStyle("icon", _refreshIcon);
+					
+					_mediator.refreshCurentRssList(function ():void{
+						refreshButton.label = "点击刷新";
+						refreshButton.setStyle("icon", null);
+					});
+				}
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="RSS" />
+		<s:State name="Refresh" />
+	</s:states>
+	<s:Rect includeIn="Refresh" left="0" top="0" right="0" bottom="0">
+		<s:fill>
+			<s:SolidColor color="0xffffff" />
+		</s:fill>
+	</s:Rect>
+	<s:HGroup width="100%" height="40" paddingTop="5" paddingBottom="5" paddingLeft="5" paddingRight="5">
+		<s:Button id="refreshButton"
+				  includeIn="Refresh" 
+				  fontFamily="Lantingqianhei"
+				  click="refreshClickHandler(event)"
+				  skinClass="cn.vimfung.mybooklet.framework.module.setting.ui.GrayButtonSkin"
+				  width="100%"
+				  height="100%"
+				  label="点击刷新" />
+	</s:HGroup>
+	<s:VGroup includeIn="RSS" width="100%" height="100%" paddingTop="10" paddingLeft="10" paddingRight="10" >
+		<s:Label id="titleLabel" width="100%" fontFamily="Lantingqianhei" fontSize="16" color="0x3E62A6" />
+		<s:Label id="pubdateLabel" color="0x999999" />
+		<s:RichText id="descriptRichText" width="300" height="100%" fontSize="12" lineBreak="toFit" fontFamily="Lantingqianhei" />
+		<s:Line width="100%" >
+			<s:stroke>
+				<s:SolidColorStroke color="0xE1E1E1" weight="1" />
+			</s:stroke>
+		</s:Line>
+	</s:VGroup>
+</s:ItemRenderer>

@@ -1,8 +1,8 @@
 package cn.vimfung.mybooklet.framework.module.myposts
 {
+	import cn.vimfung.common.db.SqliteDatabaseEvent;
+	import cn.vimfung.common.db.SqliteDatabaseToken;
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.model.ProgressInfo;
 	import cn.vimfung.mybooklet.framework.module.myposts.events.PostEvent;
 	import cn.vimfung.mybooklet.framework.module.myposts.model.AttachmentInfo;
@@ -321,13 +321,37 @@ package cn.vimfung.mybooklet.framework.module.myposts
 		 */		
 		private function dealRemovePost():void
 		{
+			var e:PostEvent = null;
 			var params:Dictionary = new Dictionary();
 			params[":postId"] = _postInfo.id;
 			
-			var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("UPDATE notes SET state = 0 WHERE id = :postId", params);
-			token.addEventListener(SqliteDatabaseEvent.RESULT, removePostResultHandler);
-			token.addEventListener(SqliteDatabaseEvent.ERROR, removePostErrorHandler);
-			token.start();
+			_facade.documentDatabase.beginTrans();
+			try
+			{
+				//删除标签关系
+				var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("DELETE FROM notes_tag_set WHERE noteId = :postId", params);
+				token.startSync();
+				//设置文章状态
+				token = _facade.documentDatabase.createCommandToken("UPDATE notes SET state = 0 WHERE id = :postId", params);
+				token.startSync();
+				
+				_facade.documentDatabase.commitTrans();
+				
+				//派发删除成功通知
+				e = new PostEvent(PostEvent.REMOVE_POST_RESULT);
+				e.postInfo = _postInfo;
+				this.dispatchEvent(e);
+			}
+			catch (err:Error)
+			{
+				_facade.documentDatabase.rollbackTrans();
+				
+				//派发删除失败通知
+				e = new PostEvent(PostEvent.REMOVE_POST_ERROR);
+				e.error = err;
+				this.dispatchEvent(e);
+			}
+
 		}
 		
 		/**
@@ -350,7 +374,7 @@ package cn.vimfung.mybooklet.framework.module.myposts
 		{
 			var offset:int = (_pageNo - 1) * 30;
 			
-			var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT * FROM notes_tag ORDER BY useCount DESC, latestTime DESC LIMIT " + offset + ",30");
+			var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT t.*,COUNT(ts.noteId) as postCount FROM notes_tag t,notes_tag_set ts,notes n WHERE t.id = ts.tagId AND ts.noteId = n.id AND n.state <> 0 GROUP BY ts.tagId HAVING COUNT(ts.noteId) > 0 ORDER BY useCount DESC, latestTime DESC LIMIT " + offset + ",30");
 			token.addEventListener(SqliteDatabaseEvent.RESULT, getTagsResultHandler);
 			token.addEventListener(SqliteDatabaseEvent.ERROR, getTagsErrorHandler);
 			token.start();
@@ -653,36 +677,6 @@ package cn.vimfung.mybooklet.framework.module.myposts
 			event.target.removeEventListener(SqliteDatabaseEvent.ERROR, getAttachmentErrorHandler);
 			
 			var e:PostEvent = new PostEvent(PostEvent.GET_POST_ERROR);
-			e.error = event.error;
-			this.dispatchEvent(e);
-		}
-		
-		/**
-		 * 删除文章返回 
-		 * @param event 事件
-		 * 
-		 */		
-		private function removePostResultHandler(event:SqliteDatabaseEvent):void
-		{
-			event.target.removeEventListener(SqliteDatabaseEvent.RESULT, removePostResultHandler);
-			event.target.removeEventListener(SqliteDatabaseEvent.ERROR, removePostErrorHandler);
-			
-			var e:PostEvent = new PostEvent(PostEvent.REMOVE_POST_RESULT);
-			e.postInfo = _postInfo;
-			this.dispatchEvent(e);
-		}
-		
-		/**
-		 * 删除文章错误 
-		 * @param event 事件
-		 * 
-		 */		
-		private function removePostErrorHandler(event:SqliteDatabaseEvent):void
-		{
-			event.target.removeEventListener(SqliteDatabaseEvent.RESULT, removePostResultHandler);
-			event.target.removeEventListener(SqliteDatabaseEvent.ERROR, removePostErrorHandler);
-			
-			var e:PostEvent = new PostEvent(PostEvent.REMOVE_POST_RESULT);
 			e.error = event.error;
 			this.dispatchEvent(e);
 		}

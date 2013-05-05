@@ -1,12 +1,12 @@
 package cn.vimfung.mybooklet.framework.patch
 {
+	import cn.vimfung.common.db.SqliteDatabaseEvent;
+	import cn.vimfung.common.db.SqliteDatabaseToken;
+	import cn.vimfung.gnotes.kit.ISystemManager;
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
 	import cn.vimfung.mybooklet.framework.events.PatchEvent;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.model.TagInfo;
 	import cn.vimfung.mybooklet.framework.notification.SystemNotification;
-	import cn.vimfung.gnotes.kit.ISystemManager;
 	
 	import flash.events.EventDispatcher;
 	import flash.utils.Dictionary;

@@ -49,6 +49,17 @@ package cn.vimfung.mybooklet.framework.model
 			return module;
 		}
 		
+		public static function getSubscriptModule():Module
+		{
+			var module:Module = new Module();
+			module.id = "cn.vimfung.mybooklet.subscript";
+			module.title = "我的订阅";
+			
+			module.url = "cn/vimfung/mybooklet/framework/module/subscript/Subscript.swf";
+			
+			return module;
+		}
+		
 		/**
 		 * 创建模块信息 
 		 * @param object 数据对象

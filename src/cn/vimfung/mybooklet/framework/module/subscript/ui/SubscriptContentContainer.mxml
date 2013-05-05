@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:ui="cn.vimfung.mybooklet.framework.module.subscript.ui.*">
+	<fx:Metadata>
+		[Event(name="back", type="flash.events.Event")]
+		[Event(name="fullscreen", type="flash.events.Event")]
+		[Event(name="import", type="flash.events.Event")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
+			import cn.vimfung.mybooklet.framework.module.myposts.ui.PostInfoWindow;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			private var _rssItem:Object = null;
+			
+			/**
+			 * 加载RSS信息
+			 * 
+			 * @param rss 订阅对象
+			 * */
+			public function loadRss(rss:Object):void
+			{
+				_rssItem = rss;
+				rssContent.location = _rssItem.link;
+			}
+			
+			/**
+			 * 清除内容
+			 * */
+			public function clearContent():void
+			{
+				rssContent.htmlText = "<back>";
+			}
+			
+			/**
+			 * HTML渲染事件
+			 * 
+			 * @param event 事件对象
+			 * */
+			protected function rssContenthtmlRenderHandler(event:Event):void
+			{
+				toolbar.visible = true;
+				if (rssContent.height < rssContent.contentHeight)
+				{
+					toolbar.paddingRight = 15;
+				}
+				else
+				{
+					toolbar.paddingRight = 0;
+				}
+			}
+			
+			/**
+			 * 加载内容完成
+			 * 
+			 * @param 事件
+			 * */
+			protected function rssContentCompleteHandler(event:Event):void
+			{
+				if (rssContent.htmlText == "<back>")
+				{
+					//派发返回事件
+					var evt:Event = new Event("back");
+					this.dispatchEvent(evt);
+				}
+			}
+			
+			/**
+			 * 返回按钮点击
+			 * 
+			 * @param 事件
+			 * */
+			protected function backButtonClickHandler(event:MouseEvent):void
+			{
+				fullscreenButton.label = "全屏";
+				this.clearContent();
+			}
+
+			/**
+			 * 返回按钮点击
+			 * 
+			 * @param 事件
+			 * */
+			protected function fullscreenButtonClickHandler(event:MouseEvent):void
+			{
+				if (_facade.fullscreen)
+				{
+					fullscreenButton.label = "全屏";
+				}
+				else
+				{
+					fullscreenButton.label = "还原";
+				}
+				
+				
+				var evt:Event = new Event("fullscreen");
+				this.dispatchEvent(evt);
+			}
+			
+			/**
+			 * 返回按钮点击
+			 * 
+			 * @param 事件
+			 * */
+			protected function importButtonClickHandler(event:MouseEvent):void
+			{
+				Alert.show("是否导入该文章?", "提示", Alert.OK | Alert.CANCEL, null, function (e:CloseEvent):void {
+					if (e.detail == Alert.OK)
+					{
+						//进行文档导入
+						var dlg:IFlexDisplayObject = _facade.popup(PostInfoWindow,true);
+						dlg.width = FlexGlobals.topLevelApplication.width;
+						dlg.height = FlexGlobals.topLevelApplication.height;
+						(dlg as PostInfoWindow).title = "导入文章";
+						(dlg as PostInfoWindow).importPost(_rssItem);
+						(dlg as PostInfoWindow).addEventListener(CloseEvent.CLOSE,addNoteWindowCloseHandler);
+					}
+				});
+			}
+			
+			/**
+			 * 关闭添加文章窗口事件
+			 * @param event 事件对象
+			 * 
+			 */
+			private function addNoteWindowCloseHandler(event:CloseEvent):void
+			{
+				_facade.removePopup(event.target as IFlexDisplayObject);
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<mx:HTML id="rssContent"
+			 htmlRender="rssContenthtmlRenderHandler(event)"
+			 complete="rssContentCompleteHandler(event)"
+			 width="100%" 
+			 height="100%" 
+			 borderColor="0xE1E1E1"
+			 borderVisible="true"
+			 borderStyle="solid" />
+	<s:HGroup id="toolbar" width="100%">
+		<s:BorderContainer backgroundImage="@Embed(source='assets/gnote/navigation_bar_bg.png')" backgroundImageFillMode="scale" borderVisible="false" width="100%" height="39">
+			<s:layout>
+				<s:HorizontalLayout paddingLeft="5" paddingTop="3" gap="5" />
+			</s:layout>
+			<s:Button id="backButton" 
+					  skinClass="cn.vimfung.mybooklet.framework.module.subscript.skin.NavigationBarItemSkin" 
+					  width="50"
+					  height="33" 
+					  label="返回" 
+					  color="0xffffff"
+					  click="backButtonClickHandler(event)"/>
+			<s:Button id="fullscreenButton" 
+					  skinClass="cn.vimfung.mybooklet.framework.module.subscript.skin.NavigationBarItemSkin" 
+					  width="50"
+					  height="33"
+					  label="全屏"
+					  color="0xffffff"
+					  click="fullscreenButtonClickHandler(event)"/>
+			<s:Button id="importButton" 
+					  skinClass="cn.vimfung.mybooklet.framework.module.subscript.skin.NavigationBarItemSkin" 
+					  width="50"
+					  height="33"
+					  label="导入"
+					  color="0xffffff"
+					  click="importButtonClickHandler(event)"/>
+		</s:BorderContainer>
+	</s:HGroup>
+</s:Group>

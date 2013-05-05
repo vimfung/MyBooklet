@@ -1,14 +1,18 @@
 package cn.vimfung.mybooklet.framework.db
 {
+	import cn.vimfung.common.db.SqliteDatabase;
+	import cn.vimfung.common.db.SqliteDatabaseToken;
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
+	import cn.vimfung.mybooklet.framework.events.DBEvent;
 	
+	import flash.data.SQLResult;
 	import flash.filesystem.File;
+	import flash.utils.Dictionary;
 	
 	/**
 	 * 初始化数据库完成 
 	 */	
-	[Event(name="initialize", type="cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent")]
+	[Event(name="initialize", type="cn.vimfung.mybooklet.framework.events.DBEvent")]
 	
 	/**
 	 * 系统数据 
@@ -77,10 +81,17 @@ package cn.vimfung.mybooklet.framework.db
 			*/
 			this.execute("CREATE TABLE IF NOT EXISTS sys_patch(name TEXT PRIMARY KEY, patchTime DATETIME)", null, true);
 			
+			/*
+				系统设置信息表(sys_setting)
+				name	设置项名称
+				value	设置项数值
+			*/
+			this.execute("CREATE TABLE IF NOT EXISTS sys_setting(name TEXT PRIMARY KEY, value TEXT)", null, true);
+			
 			_initialized = true;
 			
 			//派发初始化完成事件
-			var e:SqliteDatabaseEvent = new SqliteDatabaseEvent(SqliteDatabaseEvent.INITIALIZE);
+			var e:DBEvent = new DBEvent(DBEvent.INITIALIZE);
 			this.dispatchEvent(e);
 		}
 		
@@ -93,6 +104,37 @@ package cn.vimfung.mybooklet.framework.db
 			super.connect();
 			
 			this.initializeDatabase();
+		}
+		
+		/**
+		 * 设置配置项 
+		 * @param name	名称
+		 * @param value	值
+		 * 
+		 */		
+		public function setSetting(name:String, value:String):void
+		{
+			var facade:GNFacade = GNFacade.getInstance();
+			
+			//保存设置
+			var params:Dictionary = new Dictionary();
+			params[":name"] = name;
+			
+			var token:SqliteDatabaseToken = facade.systemDatabase.createCommandToken("SELECT * FROM sys_setting WHERE name = :name", params);
+			var result:SQLResult = token.startSync();
+			
+			params[":value"] = value;
+			if (result.data == null || result.data.length == 0)
+			{
+				//添加配置项
+				token = facade.systemDatabase.createCommandToken("INSERT INTO sys_setting VALUES(:name, :value)", params);
+				token.startSync();
+			}
+			else
+			{
+				token = facade.systemDatabase.createCommandToken("UPDATE sys_setting SET value = :value WHERE name = :name", params);
+				token.startSync();
+			}
 		}
 	}
 }

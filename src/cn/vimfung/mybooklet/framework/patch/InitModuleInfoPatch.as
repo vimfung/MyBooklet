@@ -1,11 +1,11 @@
 package cn.vimfung.mybooklet.framework.patch
 {
-	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
-	import cn.vimfung.mybooklet.framework.events.PatchEvent;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
-	import cn.vimfung.mybooklet.framework.model.Module;
+	import cn.vimfung.common.db.SqliteDatabaseEvent;
+	import cn.vimfung.common.db.SqliteDatabaseToken;
 	import cn.vimfung.gnotes.kit.ISystemManager;
+	import cn.vimfung.mybooklet.framework.GNFacade;
+	import cn.vimfung.mybooklet.framework.events.PatchEvent;
+	import cn.vimfung.mybooklet.framework.model.Module;
 	
 	import flash.events.EventDispatcher;
 	import flash.events.IEventDispatcher;
@@ -137,7 +137,7 @@ package cn.vimfung.mybooklet.framework.patch
 				parameters[":url"] = _settingModule.url;
 				parameters[":createTime"] = new Date();
 				
-				_gnFacade.systemDatabase.execute("INSERT INTO sys_module(id,title,url,createTime,type,sortIndex,useCount) VALUES(:id, :title, :url, :createTime, 1, 1, 0)", parameters, true);
+				_gnFacade.systemDatabase.execute("INSERT INTO sys_module(id,title,url,createTime,type,sortIndex,useCount) VALUES(:id, :title, :url, :createTime, 1, 99, 0)", parameters, true);
 			}
 			
 			this.finishCheck(token);

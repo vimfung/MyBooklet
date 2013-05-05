@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Module xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  implements="cn.vimfung.gnotes.kit.IApplicationInstance,cn.vimfung.mybooklet.framework.module.subscript.ISubscript"
+		  width="100%" 
+		  height="100%"
+		  creationComplete="moduleCreationCompleteHandler(event)" xmlns:ui="cn.vimfung.mybooklet.framework.module.subscript.ui.*">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.common.db.SqliteDatabaseEvent;
+			import cn.vimfung.common.db.SqliteDatabaseToken;
+			import cn.vimfung.common.rss.Rss;
+			import cn.vimfung.common.rss.RssItem;
+			import cn.vimfung.gnotes.kit.ISystemManager;
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.module.myposts.command.ImportPostCommand;
+			import cn.vimfung.mybooklet.framework.module.myposts.notification.PostNotification;
+			import cn.vimfung.mybooklet.framework.module.myposts.proxy.MyPostsProxy;
+			import cn.vimfung.mybooklet.framework.module.subscript.mediator.SubscriptMediator;
+			import cn.vimfung.mybooklet.framework.module.subscript.mediator.SubscriptWindowMediator;
+			import cn.vimfung.mybooklet.framework.module.subscript.ui.SubscriptWindow;
+			import cn.vimfung.mybooklet.framework.ui.TipsProgressPanel;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
+			private var _windowMediator:SubscriptWindowMediator;
+			private var _rssItemsPool:Dictionary;
+			
+			/**
+			 * 初始化应用时触发
+			 * @param systemManager 系统管理器
+			 * 
+			 */
+			public function onInitialize(systemManager:ISystemManager):void
+			{
+				
+			} 
+			
+			/**
+			 * 应用显示时触发 
+			 * @param systemManager 系统管理器
+			 * 
+			 */		
+			public function onOpen(systemManager:ISystemManager):void
+			{
+				var mediator:SubscriptMediator = new SubscriptMediator(this);
+				_facade.registerMediator(mediator);
+				
+				var postProxy:MyPostsProxy = new MyPostsProxy();
+				_facade.registerProxy(postProxy);
+				
+				_facade.registerCommand(PostNotification.BEGIN_IMPORT_URL_POST, ImportPostCommand);
+			} 
+			
+			/**
+			 * 应用关闭时触发 
+			 * 
+			 */		
+			public function onClose():void
+			{
+				_facade.removeMediator(SubscriptMediator.NAME);
+				_facade.removeProxy(MyPostsProxy.NAME);
+				_facade.removeCommand(PostNotification.BEGIN_IMPORT_URL_POST);
+			} 
+			
+			/**
+			 * 订阅按钮点击
+			 * 
+			 * @param event 事件
+			 * */
+			protected function subscriptButtonClickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var dlg:IFlexDisplayObject = _facade.popup(SubscriptWindow, true);
+				dlg.addEventListener(CloseEvent.CLOSE, closeDlgHandler);
+				
+				if(_windowMediator)
+				{
+					_facade.removeMediator(SubscriptWindowMediator.NAME);
+					_windowMediator = null;
+				}
+				
+				_windowMediator = new SubscriptWindowMediator(dlg as SubscriptWindow);
+				_facade.registerMediator(_windowMediator);
+			}
+			
+			/**
+			 * 关闭订阅窗口事件
+			 * 
+			 * @param event 事件
+			 * */
+			private function closeDlgHandler(event:CloseEvent):void
+			{
+				if (event.detail == Alert.OK)
+				{
+					this.getSubscripts();
+				}
+				
+				if(_windowMediator)
+				{
+					_facade.removeMediator(SubscriptWindowMediator.NAME);
+					_windowMediator = null;
+				}
+				
+				_facade.removePopup(event.target as IFlexDisplayObject);
+			}
+			
+			/**
+			 * 模块创建完成
+			 * 
+			 * @param event 事件
+			 * */
+			protected function moduleCreationCompleteHandler(event:FlexEvent):void
+			{
+				_rssItemsPool = new Dictionary();
+				this.getSubscripts();	
+			}
+			
+			/**
+			 * 获取订阅列表
+			 * */
+			private function getSubscripts():void
+			{
+				//获取订阅列表
+				var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT rl.* FROM rss_list rl, subscripts s WHERE rl.id = s.rssId ORDER BY s.createTime DESC");
+				token.addEventListener(SqliteDatabaseEvent.RESULT, getSubscriptListResultHandler);
+				token.addEventListener(SqliteDatabaseEvent.ERROR,getSubscriptListErrorHandler);
+				token.start();
+			}
+			
+			/**
+			 * 获取订阅列表返回
+			 * 
+			 * @param event 事件
+			 * */
+			private function getSubscriptListResultHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, getSubscriptListResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.ERROR, getSubscriptListErrorHandler);
+				
+				subscriptList.dataProvider = new ArrayCollection(event.recordset);
+			}
+			
+			/**
+			 * 获取订阅列表错误
+			 * 
+			 * @param event 事件
+			 * */
+			private function getSubscriptListErrorHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, getSubscriptListResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.ERROR, getSubscriptListErrorHandler);
+				
+				_facade.alert("获取订阅列表失败!" + event.error.message);
+			}
+			
+			/**
+			 * 查看订阅项变更
+			 * */
+			protected function subscriptListChangeHandler(event:IndexChangeEvent):void
+			{
+				//读取前25条缓存信息
+				var item:Object = subscriptList.selectedItem;
+				
+				if (_rssItemsPool[item.id] == null)
+				{
+					content.rssItemList.dataProvider = null;
+					this.getRssList(item.id);
+					this.refreshRssList(item);
+				}
+				else
+				{
+					content.rssItemList.dataProvider = _rssItemsPool[item.id];
+				}
+			}
+			
+			/**
+			 * 刷新订阅列表
+			 * 
+			 * @param item	订阅源
+			 * @param resultHandler	返回事件回调	
+			 * */
+			private function refreshRssList(rssData:Object, resultHandler:Function = null):void
+			{
+				var self:Subscript = this;
+				var rss:Rss = new Rss();
+				rss.addEventListener(Event.COMPLETE, function (event:Event):void{
+					//记录获取的订阅记录数据
+					_facade.documentDatabase.beginTrans();
+					try
+					{
+						//检测记录唯一性
+						for (var i:int = 0; i < rss.items.length; i++)
+						{
+							var item:RssItem = rss.items[i];
+							var params:Dictionary = new Dictionary();
+							params[":rssId"] = rssData.id;
+							params[":link"] = item.link;
+							var checkToken:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT id FROM rss_items WHERE rssId = :rssId AND link = :link", params);
+							var result:SQLResult = checkToken.startSync();
+							if (result == null || result.data == null || (result.data != null && result.data.length == 0))
+							{
+								params = new Dictionary();
+								params[":rssId"] = rssData.id;
+								params[":title"] = item.title;
+								params[":link"] = item.link;
+								params[":category"] = item.category;
+								params[":description"] = item.description;
+								params[":pubDate"] = item.pubDate;
+								params[":author"] = item.author;
+								params[":comments"] = item.comments;
+								params[":source"] = item.source;
+								
+								var insertToken:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("INSERT INTO rss_items(rssId, title, link, category, description, pubDate, author, comments, source) VALUES(:rssId, :title, :link, :category, :description, :pubDate, :author, :comments, :source)", params);
+								insertToken.startSync();
+							}
+						}
+						
+						_facade.documentDatabase.commitTrans();	
+					}
+					catch(err:Error)
+					{
+						_facade.documentDatabase.rollbackTrans();
+					}
+					
+					//重置订阅列表
+					_rssItemsPool[rssData.id] = null;
+					if (rssData.id == subscriptList.selectedItem.id)
+					{
+						//如果为当前列表则进行刷新
+						self.getRssList(rssData.id);
+					}
+					
+					if (resultHandler != null)
+					{
+						resultHandler();
+					}
+				});
+				rss.load(rssData.url);
+			}
+			
+			/**
+			 * 获取订阅列表
+			 * */
+			private function getRssList(rssId:Number, item:Object = null, pageSize:int = 25):void
+			{
+				var params:Dictionary = new Dictionary();
+				params[":rssId"] = rssId;
+				
+				var conditionString:String = "";
+				if (item != null)
+				{
+					params[":id"] = item.id;
+					conditionString += "AND pubDate < (SELECT pubDate FROM rss_items WHERE id = :id)"
+				}
+				
+				var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT * FROM rss_items WHERE rssId = :rssId " + conditionString + " ORDER BY pubDate DESC LIMIT 0," + pageSize.toString(), params);
+				token.userData = rssId;
+				token.addEventListener(SqliteDatabaseEvent.RESULT, getRSSListResultHandler);
+				token.addEventListener(SqliteDatabaseEvent.ERROR, getRSSListErrorHandler);
+				token.start();
+			}
+			
+			/**
+			 * 获取订阅信息返回
+			 * 
+			 * @param event 事件
+			 * */
+			private function getRSSListResultHandler(event:SqliteDatabaseEvent):void
+			{
+				var token:SqliteDatabaseToken = event.target as SqliteDatabaseToken;
+				token.removeEventListener(SqliteDatabaseEvent.RESULT, getRSSListResultHandler);
+				token.removeEventListener(SqliteDatabaseEvent.ERROR, getRSSListErrorHandler);
+				
+				if (token.userData == subscriptList.selectedItem.id)
+				{
+					var list:ArrayCollection = _rssItemsPool[token.userData]; 
+					if (list == null)
+					{
+						list = new ArrayCollection(["#refresh#"]);
+						_rssItemsPool[token.userData] = list;
+					}
+					
+					if (event.recordset != null)
+					{
+						//过滤描述内容
+						for (var i:int = 0; i < event.recordset.length; i++)
+						{
+							var item:Object = event.recordset[i];
+							if (item.description != null)
+							{
+								var regexp:RegExp = new RegExp("<[^>]+>", "/g");
+								item.description = item.description.replace(regexp, "");
+								if (item.description.length > 200)
+								{
+									item.description = item.description.substr(0, 200) + "...";
+								}
+							}
+						}
+						
+						list.addAll(new ArrayCollection(event.recordset));
+						content.rssItemList.dataProvider = list;
+					}
+				}
+			}
+			
+			/**
+			 * 获取订阅信息错误
+			 * 
+			 * @param event 事件
+			 * */
+			private function getRSSListErrorHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, getRSSListResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.ERROR, getRSSListErrorHandler);
+			}
+			
+			/**
+			 * @inheritDoc
+			 * */
+			public function refreshCurrentRssList(result:Function):void
+			{
+				if (subscriptList.selectedItem)
+				{
+					this.refreshRssList(subscriptList.selectedItem, result);
+				}
+			}
+			
+			/**
+			 * @inheritDoc
+			 * */
+			public function getMore(item:Object):void
+			{
+				if (item != null && subscriptList.selectedItem != null)
+				{
+					var listData:ArrayCollection = _rssItemsPool[subscriptList.selectedItem.id];
+					if (listData != null && listData[listData.length - 1] == item)
+					{
+						//加载更多数据
+						this.getRssList(subscriptList.selectedItem.id, item);
+					}
+				}
+			}
+			
+			/**
+			 * 订阅列表点击
+			 * 
+			 * @param event 事件
+			 * */
+			protected function subscriptListClickHandler(event:MouseEvent):void
+			{
+				content.backToList();
+			}
+			
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:HorizontalLayout paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" />
+	</s:layout>
+	<s:states>
+		<s:State name="Normal" />
+		<s:State name="FullScreen" />
+	</s:states>
+	<s:VGroup width="330" height="100%" fontFamily="Lantingqianhei" fontSize="12" excludeFrom="FullScreen" >
+		<s:List id="subscriptList"
+				itemRenderer="cn.vimfung.mybooklet.framework.module.subscript.ui.SubscriptItemRenderer"
+				width="100%"
+				height="100%" 
+				borderColor="0xE1E1E1" 
+				rollOverColor="0xF9F7F8" 
+				selectionColor="0xF9F7F8"
+				horizontalScrollPolicy="off"
+				verticalScrollPolicy="on"
+				change="subscriptListChangeHandler(event)"
+				click="subscriptListClickHandler(event)" />
+		<s:Button label="订阅" skinClass="cn.vimfung.mybooklet.framework.module.setting.ui.GrayButtonSkin" height="33" width="100%" click="subscriptButtonClickHandler(event)" />
+	</s:VGroup>
+	<ui:SubscriptContent id="content" width="100%" height="100%" />
+</s:Module>

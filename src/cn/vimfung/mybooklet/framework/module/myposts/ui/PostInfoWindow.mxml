@@ -119,11 +119,18 @@
 						//导入文章
 						if(_source is File)
 						{
+							//本地文件
 							this.importFile(_source as File);
 						}
 						else if(_source is String)
 						{
+							//导入URL
 							this.importUrl(_source as String);
+						}
+						else if(_source is Object)
+						{
+							//导入RSS
+							this.importRss(_source);
 						}
 						break;
 					}
@@ -156,6 +163,24 @@
 			{
 				//派发通知
 				var notif:PostNotification = new PostNotification(PostNotification.BEGIN_IMPORT_URL_POST, url);
+				_facade.postNotification(notif);
+			}
+			
+			/**
+			 * 从RSS中导入文章
+			 * 
+			 * @param file 文章
+			 * */
+			private function importRss(rss:Object):void
+			{
+				//派发通知
+				tiTitle.text = rss.title;
+				//设置标签
+				_tags = "订阅收藏";
+				tiTags.text = _tags;
+				tiTags.setStyle("color",0x666666);
+				
+				var notif:PostNotification = new PostNotification(PostNotification.BEGIN_IMPORT_URL_POST, rss.link);
 				_facade.postNotification(notif);
 			}
 			

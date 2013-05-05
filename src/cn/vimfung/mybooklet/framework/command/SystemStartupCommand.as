@@ -1,21 +1,25 @@
 package cn.vimfung.mybooklet.framework.command
 {
+	import cn.vimfung.common.db.SqliteDatabaseEvent;
+	import cn.vimfung.common.db.SqliteDatabaseToken;
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
+	import cn.vimfung.mybooklet.framework.events.DBEvent;
 	import cn.vimfung.mybooklet.framework.events.PatchEvent;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.mediator.MainMediator;
 	import cn.vimfung.mybooklet.framework.model.Module;
 	import cn.vimfung.mybooklet.framework.module.myposts.Constant;
 	import cn.vimfung.mybooklet.framework.notification.SystemNotification;
 	import cn.vimfung.mybooklet.framework.patch.ChangeModuleInfoPatch;
+	import cn.vimfung.mybooklet.framework.patch.CreateSubscriptModulePatch;
 	import cn.vimfung.mybooklet.framework.patch.IPatchObject;
+	import cn.vimfung.mybooklet.framework.patch.ImportTagNoteSetPatch;
 	import cn.vimfung.mybooklet.framework.patch.ImportTagPinyinPatch;
 	import cn.vimfung.mybooklet.framework.patch.ImportUsedTagPatch;
 	import cn.vimfung.mybooklet.framework.patch.InitModuleInfoPatch;
 	import cn.vimfung.mybooklet.framework.ui.TipsProgressPanel;
 	
 	import flash.data.SQLColumnSchema;
+	import flash.data.SQLResult;
 	import flash.data.SQLTableSchema;
 	import flash.display.Loader;
 	import flash.filesystem.File;
@@ -35,6 +39,7 @@ package cn.vimfung.mybooklet.framework.command
 	import org.puremvc.as3.interfaces.INotification;
 	import org.puremvc.as3.patterns.command.SimpleCommand;
 	
+	import spark.components.CheckBox;
 	import spark.components.DropDownList;
 	import spark.components.Image;
 	import spark.components.RadioButton;
@@ -74,7 +79,9 @@ package cn.vimfung.mybooklet.framework.command
 			{name:InitModuleInfoPatch.NAME, type:InitModuleInfoPatch},			//初始化模块信息
 			{name:ImportUsedTagPatch.NAME, type:ImportUsedTagPatch},			//转换文件中的标签到常用标签列表
 			{name:ImportTagPinyinPatch.NAME, type:ImportTagPinyinPatch},		//转换标签的拼音索引
-			{name:ChangeModuleInfoPatch.NAME, type:ChangeModuleInfoPatch}		//变更模块信息
+			{name:ChangeModuleInfoPatch.NAME, type:ChangeModuleInfoPatch},		//变更模块信息
+			{name:ImportTagNoteSetPatch.NAME, type:ImportTagNoteSetPatch},		//转换标签与文章关联映射
+			{name:CreateSubscriptModulePatch.NAME, type:CreateSubscriptModulePatch}	//写入订阅模块
 		];
 		
 		/**
@@ -90,11 +97,11 @@ package cn.vimfung.mybooklet.framework.command
 			
 			if (!_sysDbReady)
 			{
-				_gnFacade.systemDatabase.addEventListener(SqliteDatabaseEvent.INITIALIZE, dbInitHandler);
+				_gnFacade.systemDatabase.addEventListener(DBEvent.INITIALIZE, dbInitHandler);
 			}
 			if (!_docDbReady)
 			{
-				_gnFacade.documentDatabase.addEventListener(SqliteDatabaseEvent.INITIALIZE, dbInitHandler);
+				_gnFacade.documentDatabase.addEventListener(DBEvent.INITIALIZE, dbInitHandler);
 			}
 			this.checkDbReady();
 			
@@ -118,6 +125,7 @@ package cn.vimfung.mybooklet.framework.command
 			var richtext:RichText;
 			var image:Image;
 			var radioButton:RadioButton;
+			var checkbox:CheckBox;
 			
 			Alert.okLabel = "确定";
 			Alert.cancelLabel = "取消";
@@ -133,6 +141,31 @@ package cn.vimfung.mybooklet.framework.command
 		{
 			if(_sysDbReady && _docDbReady)
 			{
+				//获取系统配置
+				var token:SqliteDatabaseToken = _gnFacade.systemDatabase.createCommandToken("SELECT * FROM sys_setting");
+				var result:SQLResult = token.startSync();
+				if (result.data != null)
+				{
+					for (var i:int = 0; i < result.data.length; i++)
+					{
+						var item:Object = result.data[i];
+						switch(item.name)
+						{
+							case GNFacade.CHECK_VER_FLAG:
+								_gnFacade.checkVerFlag = item.value == null ? 0 : Number(item.value);
+								break;
+							case GNFacade.LAST_CHECK_VER_TIME:
+								_gnFacade.lastCheckVerTime = item.value == null ? 0 : Number(item.value);
+								break;
+						}
+					}
+				}
+				else
+				{
+					_gnFacade.checkVerFlag = 0;
+					_gnFacade.lastCheckVerTime = 0;
+				}
+				
 				//注册视图访问器
 				_mainMediator = new MainMediator();
 				_gnFacade.registerMediator(_mainMediator);
@@ -150,9 +183,9 @@ package cn.vimfung.mybooklet.framework.command
 		 * @param event 事件
 		 * 
 		 */		
-		private function dbInitHandler(event:SqliteDatabaseEvent):void
+		private function dbInitHandler(event:DBEvent):void
 		{
-			event.target.removeEventListener(SqliteDatabaseEvent.INITIALIZE, dbInitHandler);
+			event.target.removeEventListener(DBEvent.INITIALIZE, dbInitHandler);
 
 			if (event.target == _gnFacade.systemDatabase)
 			{
@@ -176,10 +209,51 @@ package cn.vimfung.mybooklet.framework.command
 			{
 				_gnFacade.removePopup(_tipsPanel);
 				
-				//检测版本更新
-				var notif:SystemNotification = new SystemNotification(SystemNotification.CHECK_VERSION);
-				_gnFacade.postNotification(notif);
+				var hasCheck:Boolean = false;
+				var curDate:Date = new Date();
+				switch(_gnFacade.checkVerFlag)
+				{
+					case 0:
+						//每次
+						hasCheck = true;
+						break;
+					case 1:
+						//每小时
+						if (curDate.time - _gnFacade.lastCheckVerTime > 3600000)
+						{
+							hasCheck = true;
+						}
+						break;
+					case 2:
+						//每天
+						if (curDate.time - _gnFacade.lastCheckVerTime > 86400000)
+						{
+							hasCheck = true;
+						}
+						break;
+					case 3:
+						//每月,按30天算
+						if (curDate.time - _gnFacade.lastCheckVerTime > 2592000000)
+						{
+							hasCheck = true;
+						}
+						break;
+					case 4:
+						//每三个月,按90天算
+						if (curDate.time - _gnFacade.lastCheckVerTime > 7776000000)
+						{
+							hasCheck = true;
+						}
+						break;
+				}
 				
+				if (hasCheck)
+				{
+					//检测版本更新
+					var notif:SystemNotification = new SystemNotification(SystemNotification.CHECK_VERSION);
+					_gnFacade.postNotification(notif);
+				}
+
 				//获取主功能模块
 				var token:SqliteDatabaseToken = _gnFacade.systemDatabase.execute("SELECT * FROM sys_module WHERE type = 1 ORDER BY sortIndex");
 				token.addEventListener(SqliteDatabaseEvent.RESULT, getMainMenuModuleResultHandler);

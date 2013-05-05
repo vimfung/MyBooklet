@@ -1,7 +1,6 @@
 package cn.vimfung.mybooklet.framework.module.myposts.mediator
 {
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.module.myposts.Constant;
 	import cn.vimfung.mybooklet.framework.module.myposts.IMyPosts;
 	import cn.vimfung.mybooklet.framework.module.myposts.MyPosts;
@@ -389,36 +388,40 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 					tagString = "<p>" + tagString + "</p>";
 				}
 				contentString = "<div style='margin:10px 10px 0px 10px;font-family:微软雅黑;font-size:14px;' >" + postInfo.title + "<div>" + tagString + "</div><hr style='clear:both;border:none;border-bottom:1px dashed #E1E1E1;' /></div><div style='margin:5px 10px 10px 10px;clear:both;font-family:Lantingqianhei;微软雅黑;'>" + postInfo.content + "</div>";
-			}
-
-			var htmlContentView:HTML = _myPostsModule.contentView.contentContainer.htmlContent;
-			htmlContentView.htmlLoader.placeLoadStringContentInApplicationSandbox = true;
-			htmlContentView.htmlText = contentString;
-			
-			if(event.attachments != null)
-			{
-				//显示附件列表
-				_myPostsModule.contentView.currentState = "AttachPost";
 				
-				var attachments:Array = new Array();
-				for (var j:int = 0; j < event.attachments.length; j++)
+				var htmlContentView:HTML = _myPostsModule.contentView.contentContainer.htmlContent;
+				htmlContentView.htmlLoader.placeLoadStringContentInApplicationSandbox = true;
+				htmlContentView.htmlText = contentString;
+				
+				if(event.attachments != null)
 				{
-					var attach:Object = event.attachments[j];
-					if(attach.url != null)
+					//显示附件列表
+					_myPostsModule.contentView.currentState = "AttachPost";
+					
+					var attachments:Array = new Array();
+					for (var j:int = 0; j < event.attachments.length; j++)
 					{
-						var file:File = new File(attach.url);
-						var attachInfo:AttachmentInfo = new AttachmentInfo(file);
-						attachInfo.createTime = attach.createTime;
-						attachments.push(attachInfo);
+						var attach:Object = event.attachments[j];
+						if(attach.url != null)
+						{
+							var file:File = new File(attach.url);
+							var attachInfo:AttachmentInfo = new AttachmentInfo(file);
+							attachInfo.createTime = attach.createTime;
+							attachments.push(attachInfo);
+						}
 					}
+					
+					_myPostsModule.contentView.gridAttachment.dataProvider = new ArrayCollection(attachments);
 				}
-				
-				_myPostsModule.contentView.gridAttachment.dataProvider = new ArrayCollection(attachments);
+				else
+				{
+					//隐藏附件列表
+					_myPostsModule.contentView.currentState = "Normal";
+				}
 			}
 			else
 			{
-				//隐藏附件列表
-				_myPostsModule.contentView.currentState = "Normal";
+				_gnFacade.alert("无效的文章!");
 			}
 		}
 		
@@ -503,7 +506,7 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 		private function itemWillDisplayHandler(event:SectionListEvent):void
 		{
 			var tagInfo:Object = _sectionListDataProvider.getSection(event.indexPath.section);
-			var len:int = _sectionListDataProvider.getSectionDataLength(tagInfo);
+			var len:int = _sectionListDataProvider.getExpandSectionDataLength(tagInfo);
 			if (event.indexPath.row == len - 1)
 			{
 				var stateObj:Object = _tagPostListState.tagPostsState[tagInfo.id];
@@ -569,6 +572,10 @@ package cn.vimfung.mybooklet.framework.module.myposts.mediator
 					{
 						post.title = postInfo.title;
 						post.modifyTime = postInfo.modifyTime;
+						
+						//移动文章置顶
+						_postsList.removeItemAt(i);
+						_postsList.addItemAt(post, 0);
 						break;
 					}
 				}

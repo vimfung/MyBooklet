@@ -21,15 +21,14 @@
   <modules>
     <module application="src/MyBooklet.mxml" destPath="cn/vimfung/mybooklet/framework/module/myposts/MyPosts.swf" optimize="true" sourcePath="src/cn/vimfung/mybooklet/framework/module/myposts/MyPosts.mxml"/>
     <module application="src/MyBooklet.mxml" destPath="cn/vimfung/mybooklet/framework/module/setting/Setting.swf" optimize="true" sourcePath="src/cn/vimfung/mybooklet/framework/module/setting/Setting.mxml"/>
+    <module application="src/MyBooklet.mxml" destPath="cn/vimfung/mybooklet/framework/module/subscript/Subscript.swf" optimize="true" sourcePath="src/cn/vimfung/mybooklet/framework/module/subscript/Subscript.mxml"/>
   </modules>
   <buildCSSFiles/>
   <flashCatalyst validateFlashCatalystCompatibility="false"/>
   <buildTargets>
     <buildTarget buildTargetName="default">
       <airSettings airCertificatePath="G:/我的文档/vimfung.p12" airTimestamp="true" version="1">
-        <airExcludes>
-          <pathEntry path="assets/fonts"/>
-        </airExcludes>
+        <airExcludes/>
       </airSettings>
       <actionScriptSettings version="1"/>
     </buildTarget>

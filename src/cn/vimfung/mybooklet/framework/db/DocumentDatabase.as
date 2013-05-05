@@ -1,7 +1,9 @@
 package cn.vimfung.mybooklet.framework.db
 {
+	import cn.vimfung.common.db.SqliteDatabase;
+	import cn.vimfung.common.db.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
+	import cn.vimfung.mybooklet.framework.events.DBEvent;
 	import cn.vimfung.mybooklet.framework.module.myposts.Constant;
 	
 	import flash.data.SQLColumnSchema;
@@ -11,7 +13,7 @@ package cn.vimfung.mybooklet.framework.db
 	/**
 	 * 初始化数据库完成 
 	 */	
-	[Event(name="initialize", type="cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent")]
+	[Event(name="initialize", type="cn.vimfung.mybooklet.framework.events.DBEvent")]
 	
 	/**
 	 * 文档数据库 
@@ -87,6 +89,48 @@ package cn.vimfung.mybooklet.framework.db
 				fpinyin		标签拼音首字母
 			*/
 			this.execute("CREATE TABLE IF NOT EXISTS notes_tag(id INTEGER PRIMARY KEY, name TEXT, createTime DATETIME, latestTime DATETIME, useCount INTEGER, pinyin TEXT, fpinyin TEXT)", null, true);
+			
+			/*
+				文章标签关系表(notes_tag_set)
+				tagId	标签ID
+				noteId	文章ID
+			*/
+			this.execute("CREATE TABLE IF NOT EXISTS notes_tag_set(tagId INTEGER, noteId INTEGER, FOREIGN KEY(tagId) REFERENCES notes_tag(id), FOREIGN KEY(noteId) REFERENCES notes(id))", null, true);
+			
+			/*
+				订阅源信息表(rss_list)
+				id		订阅源ID
+				title	名称
+				link	链接
+				desc	描述
+				image	图标
+				url		订阅源URL
+				createTIme	创建时间
+				updateTime	订阅最新一次数据
+			*/
+			this.execute("CREATE TABLE IF NOT EXISTS rss_list(id INTEGER PRIMARY KEY, title TEXT, link TEXT, desc TEXT, image TEXT, url TEXT, createTime DATETIME, updateTime DATETIME)", null, true);
+			
+			/*
+				订阅数据表（rss_items)
+				id	数据标识
+				rssId	订阅ID
+				title	标题
+				link	链接
+				category	分类
+				description		描述
+				pubDate		发布时间
+				author		作者的email地址
+				comments		评论的地址
+				source		rss频道来源
+			*/
+			this.execute("CREATE TABLE IF NOT EXISTS rss_items(id INTEGER PRIMARY KEY, rssId INTEGER, title TEXT, link TEXT, category TEXT, description TEXT, pubDate DATETIME, author TEXT, comments TEXT, source TEXT, FOREIGN KEY(rssId) REFERENCES rss_list(id))", null, true);
+			
+			/*
+				订阅信息表（subscripts)
+				rssId	订阅源ID
+				createTime	订阅时间
+			*/
+			this.execute("CREATE TABLE IF NOT EXISTS subscripts(rssId INTEGER, createTime DATETIME, FOREIGN KEY(rssId) REFERENCES rss_list(id))", null, true);
 			
 			//获取标签数据表架构信息，来判断数据表版本
 			this.addEventListener(SqliteDatabaseEvent.SCHEMA, tagTableSchemaResultHandler);
@@ -187,7 +231,7 @@ package cn.vimfung.mybooklet.framework.db
 			
 			_initialized = true;
 			
-			var e:SqliteDatabaseEvent = new SqliteDatabaseEvent(SqliteDatabaseEvent.INITIALIZE);
+			var e:DBEvent = new DBEvent(DBEvent.INITIALIZE);
 			this.dispatchEvent(e);
 		}
 		

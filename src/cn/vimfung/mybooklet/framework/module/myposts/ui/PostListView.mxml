@@ -13,9 +13,9 @@
 	</fx:Declarations>
 	<fx:Script>
 		<![CDATA[
+			import cn.vimfung.common.db.SqliteDatabaseEvent;
+			import cn.vimfung.common.db.SqliteDatabaseToken;
 			import cn.vimfung.mybooklet.framework.GNFacade;
-			import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
-			import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 			import cn.vimfung.mybooklet.framework.module.myposts.events.ColorFilterEvent;
 			import cn.vimfung.mybooklet.framework.module.myposts.mediator.MyPostsMediator;
 			import cn.vimfung.mybooklet.framework.module.myposts.model.PostsRequestData;

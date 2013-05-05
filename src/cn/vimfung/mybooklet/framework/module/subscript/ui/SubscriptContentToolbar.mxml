@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" width="27" height.Normal="73" height.FullScreen="29"
+				   borderVisible="false"
+				   backgroundAlpha="0.7"
+				   backgroundColor="0xd2d2d2" 
+				   cornerRadius="5">
+	<s:layout>
+		<s:VerticalLayout horizontalAlign="center" paddingTop="5" paddingBottom="5" />
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import cn.vimfung.mybooklet.framework.GNFacade;
+			import cn.vimfung.mybooklet.framework.notification.SystemNotification;
+			
+			/**
+			 * 全屏按钮点击
+			 * */
+			protected function fullScreenButtonClickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var facade:GNFacade = GNFacade.getInstance();
+				facade.fullscreen = !facade.fullscreen;
+			}
+			
+			/**
+			 * 关闭按钮点击
+			 * */
+			protected function closeButtonClickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.parent.visible = false;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:states>
+		<s:State name="Normal" />
+		<s:State name="FullScreen" />
+	</s:states>
+	<s:Button width="17" height="17" toolTip.Normal="全屏" toolTip.FullScreen="还原" click="fullScreenButtonClickHandler(event)" skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.FullScreenButtonSkin" />
+	<s:Button width="17" height="17" toolTip="收藏" skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.FullScreenButtonSkin" />
+	<s:Button excludeFrom="FullScreen" width="17" height="17" toolTip="关闭" click="closeButtonClickHandler(event)" skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.CloseButtonSkin" />
+</s:BorderContainer>

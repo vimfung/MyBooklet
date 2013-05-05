@@ -1,8 +1,8 @@
 package cn.vimfung.mybooklet.framework.module.setting.command
 {
+	import cn.vimfung.common.db.SqliteDatabaseEvent;
+	import cn.vimfung.common.db.SqliteDatabaseToken;
 	import cn.vimfung.mybooklet.framework.GNFacade;
-	import cn.vimfung.mybooklet.framework.db.SqliteDatabaseToken;
-	import cn.vimfung.mybooklet.framework.events.SqliteDatabaseEvent;
 	import cn.vimfung.mybooklet.framework.model.ProgressInfo;
 	import cn.vimfung.mybooklet.framework.module.myposts.Constant;
 	import cn.vimfung.mybooklet.framework.module.setting.notification.BackupNotification;
