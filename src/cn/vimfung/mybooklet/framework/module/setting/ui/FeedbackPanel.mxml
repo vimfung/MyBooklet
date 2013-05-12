@@ -9,7 +9,11 @@
 		<![CDATA[
 			import cn.vimfung.mybooklet.framework.GNFacade;
 			
+			import com.adobe.serialization.json.JSON;
+			
 			import mx.utils.StringUtil;
+			
+			private var _facade:GNFacade = GNFacade.getInstance();
 			
 			/**
 			 * 反馈按钮点击 
@@ -24,18 +28,106 @@
 				}
 				else
 				{
-					var request:URLRequest = new URLRequest("mailto:vimfung@gmail.com?subject=GNotes问题反馈&body=" + contentTextArea.text);
-					navigateToURL(request, "_blank");
+					var request:URLRequest = new URLRequest("http://mybooklet.sinaapp.com/Myapi/sendFeedback");
+					request.method = URLRequestMethod.POST;
+					request.data = new URLVariables();
+					request.data.feedback = contentTextArea.text;
+					if (nameTextInput.text != "")
+					{
+						request.data.name = nameTextInput.text;
+					}
+					if (emailTextInput.text != "")
+					{
+						request.data.email = emailTextInput.text;
+					}
+					
+					var loader:URLLoader = new URLLoader(request);
+					loader.addEventListener(Event.COMPLETE, feedbackCompleteHandler);
+					loader.addEventListener(IOErrorEvent.IO_ERROR, feedbackIOErrorHandler);
+					loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, feedbackSecurityErrorHandler);
+					
+					feedbackButton.label = "正在提交...";
+					feedbackButton.enabled = false;
+				}
+			}
+			
+			/**
+			 * 反馈完成
+			 * 
+			 * @param event 事件
+			 * */
+			private function feedbackCompleteHandler(event:Event):void
+			{
+				event.target.removeEventListener(Event.COMPLETE, feedbackCompleteHandler);
+				event.target.removeEventListener(IOErrorEvent.IO_ERROR, feedbackIOErrorHandler);
+				event.target.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, feedbackSecurityErrorHandler);
+				
+				var responder:* = JSON.decode(event.target.data);
+				if (responder.status == 200)
+				{
+					_facade.alert("反馈成功！感谢您的支持！");
 					contentTextArea.text = "";
 				}
+				else
+				{
+					_facade.alert("反馈失败!" + responder.flag);
+				}
+				
+				feedbackButton.label = "我要提交";
+				feedbackButton.enabled = true;
+			}
+			
+			/**
+			 * 反馈IO异常
+			 * 
+			 * @param event 事件
+			 * */
+			private function feedbackIOErrorHandler(event:IOErrorEvent):void
+			{
+				event.target.removeEventListener(Event.COMPLETE, feedbackCompleteHandler);
+				event.target.removeEventListener(IOErrorEvent.IO_ERROR, feedbackIOErrorHandler);
+				event.target.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, feedbackSecurityErrorHandler);
+				
+				_facade.alert("反馈时发送异常哦,请稍候在进行反馈！");
+				
+				feedbackButton.label = "我要提交";
+				feedbackButton.enabled = true;
+			}
+			
+			/**
+			 * 反馈安全性异常
+			 * 
+			 * @param event 事件
+			 * */
+			private function feedbackSecurityErrorHandler(event:SecurityErrorEvent):void
+			{
+				event.target.removeEventListener(Event.COMPLETE, feedbackCompleteHandler);
+				event.target.removeEventListener(IOErrorEvent.IO_ERROR, feedbackIOErrorHandler);
+				event.target.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, feedbackSecurityErrorHandler);
+				
+				_facade.alert("反馈时发送异常哦,请稍候在进行反馈！");
+				
+				feedbackButton.label = "我要提交";
+				feedbackButton.enabled = true;
 			}
 		]]>
 	</fx:Script>
 	<s:VGroup width="100%" height="100%" fontFamily="Lantingqianhei">
 		<s:Label width="100%" text="感谢您使用MyBooklet！在使用过程中如果发现问题，可以通过该反馈功能进行问题反馈，我将第一时间给您进行答复。再次谢谢您的支持！" />
+		<s:HGroup width="100%" verticalAlign="middle">
+			<s:Label text="姓名：" />
+			<s:TextInput id="nameTextInput" borderColor="0xE1E1E1" width="200" skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.PostTitleTextInput" />
+		</s:HGroup>
+		<s:HGroup width="100%" verticalAlign="middle">
+			<s:Label text="邮箱：" />
+			<s:TextInput id="emailTextInput" borderColor="0xE1E1E1" width="200" skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.PostTitleTextInput" />
+		</s:HGroup>
 		<s:HGroup width="100%">
+			<s:Label text="内容：" />
 			<s:TextArea id="contentTextArea" borderColor="0xE3E3E3" width="100%" height="200" skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.TagTextAreaSkin" />
-			<s:Button label="我要提交" width="120" height="40" click="feedbackButtonClickHandler(event)" skinClass="cn.vimfung.mybooklet.framework.module.setting.ui.GrayButtonSkin" />
+		</s:HGroup>
+		<s:HGroup width="100%" horizontalAlign="right">
+			<s:Button id="feedbackButton" label="我要提交" width="120" height="40" click="feedbackButtonClickHandler(event)" skinClass="cn.vimfung.mybooklet.framework.module.setting.ui.GrayButtonSkin" />
 		</s:HGroup>
 	</s:VGroup>
 </mx:Canvas>

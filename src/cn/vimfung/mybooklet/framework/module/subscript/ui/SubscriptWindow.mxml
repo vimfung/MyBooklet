@@ -16,6 +16,8 @@
 			import cn.vimfung.common.rss.RssItem;
 			import cn.vimfung.mybooklet.framework.GNFacade;
 			
+			import com.adobe.serialization.json.JSON;
+			
 			import mx.collections.ArrayCollection;
 			import mx.controls.Alert;
 			import mx.events.CloseEvent;
@@ -98,6 +100,16 @@
 				var e:CloseEvent = new CloseEvent(CloseEvent.CLOSE);
 				e.detail = Alert.OK;
 				this.dispatchEvent(e);
+			}
+			
+			/**
+			 * 刷新按钮点击事件
+			 * 
+			 * @param event 事件
+			 * */
+			protected function refreshButtonClickHandler(event:MouseEvent):void
+			{
+				this.getServerRssList();	
 			}
 			
 			/**
@@ -257,14 +269,96 @@
 			 * */
 			protected function creationCompleteHandler(event:FlexEvent):void
 			{
+				//先获取本地订阅列表
+				this.getLocalRssList(true);
+			}
+			
+			/**
+			 * 获取本地缓存订阅源列表
+			 * 
+			 * @param first 首次获取标识，首次获取需要判断是否有本地数据
+			 * */
+			private function getLocalRssList(first:Boolean = false):void
+			{
 				//获取登录的RSS列表
 				var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT DISTINCT rl.*, ifnull(s.rssId, 0) as issubscript FROM rss_list rl LEFT JOIN subscripts s ON rl.id = s.rssId ORDER BY rl.createTime DESC");
-				token.addEventListener(SqliteDatabaseEvent.RESULT, getRssListResultHandler);
+				if (first)
+				{
+					token.addEventListener(SqliteDatabaseEvent.RESULT, firstGetRssListResultHandler);
+				}
+				else
+				{
+					token.addEventListener(SqliteDatabaseEvent.RESULT, getRssListResultHandler);
+				}
+				
 				token.addEventListener(SqliteDatabaseEvent.ERROR, getRssListErrorHandler);
 				token.start();
 			}
 			
+			/**
+			 * 获取服务器订阅源列表
+			 * */
+			private function getServerRssList():void
+			{
+				//从服务器获取新的订阅源
+				var requst:URLRequest = new URLRequest("http://mybooklet.sinaapp.com/Myapi/rss");
+				var loader:URLLoader = new URLLoader(requst);
+				loader.addEventListener(Event.COMPLETE, getServerRssListCompleteHandler, false, 0, true);
+			}
 			
+			/**
+			 * 服务器RSS列表加载完成
+			 * 
+			 * @param event 事件
+			 * */
+			private function getServerRssListCompleteHandler(event:Event):void
+			{
+				event.target.removeEventListener(Event.COMPLETE, getServerRssListCompleteHandler);
+				
+				var responder:* = JSON.decode(event.target.data);
+				if (responder.status == 200)
+				{
+					_facade.documentDatabase.beginTrans();
+					try
+					{
+						var list:Array = responder.list;
+						for (var i:int = 0; i < list.length; i++)
+						{
+							var rssItem:Object = list[i];
+							
+							//判断本地是否包含此订阅源，如果没有则写入本地数据库
+							var param:Dictionary = new Dictionary();
+							param[":url"] = rssItem.source_url;
+							
+							var token:SqliteDatabaseToken = _facade.documentDatabase.createCommandToken("SELECT id FROM rss_list WHERE url = :url", param);
+							var result:SQLResult = token.startSync();
+							if (result == null || result.data == null || result.data.length == 0)
+							{
+								//写入本地数据库
+								param = new Dictionary();
+								param[":title"] = rssItem.title;
+								param[":url"] = rssItem.source_url;
+								param[":desc"] = rssItem.desc;
+								param[":image"] = rssItem.icon;
+								param[":createTime"] = new Date();
+								param[":updateTime"] = param[":createTime"];
+								
+								token = _facade.documentDatabase.createCommandToken("INSERT INTO rss_list(title, desc, image, url, createTime, updateTime) VALUES(:title, :desc, :image, :url, :createTime, :updateTime)", param);
+								token.startSync();
+							}
+						}
+						
+						_facade.documentDatabase.commitTrans();
+					}
+					catch(err:Error)
+					{
+						_facade.documentDatabase.rollbackTrans();
+					}
+					
+					_rssListArray.removeAll();
+					this.getLocalRssList();
+				}
+			}
 			
 			/**
 			 * 获取RSS列表返回
@@ -282,6 +376,28 @@
 					rssList.dataProvider = _rssListArray;
 				}
 			}	
+			
+			/**
+			 * 首次获取RSS列表返回
+			 * 
+			 * @param event 事件
+			 * */
+			private function firstGetRssListResultHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, firstGetRssListResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.ERROR, getRssListErrorHandler);
+				
+				if (event.recordset != null && event.recordset.length > 0)
+				{
+					_rssListArray.addAll(new ArrayCollection(event.recordset));
+					rssList.dataProvider = _rssListArray;
+				}
+				else
+				{
+					//从服务器加载列表
+					this.getServerRssList();
+				}
+			}
 			
 			/**
 			 * 获取RSS列表失败
@@ -307,8 +423,9 @@
 	</s:layout>
 	<s:HGroup width="100%" verticalAlign="middle">
 		<s:Label text="rss:" />
-		<s:TextInput id="urlTextInput" width="100%" borderColor="0xE1E1E1" height="33" />
+		<s:TextInput id="urlTextInput" width="100%" borderColor="0xE1E1E1" height="33" skinClass="cn.vimfung.mybooklet.framework.module.myposts.skin.PostTitleTextInput" />
 		<s:Button id="addButton" label="添加" skinClass="cn.vimfung.mybooklet.framework.module.setting.ui.GrayButtonSkin" width="80" height="33" click="addButtonClickHandler(event)" />
+		<s:Button id="refreshButton" label="刷新" skinClass="cn.vimfung.mybooklet.framework.module.setting.ui.GrayButtonSkin" width="80" height="33" click="refreshButtonClickHandler(event)" />
 	</s:HGroup>
 	<s:List id="rssList" itemRenderer="cn.vimfung.mybooklet.framework.module.subscript.ui.RssItemRenderer" width="100%" height="100%" borderColor="0xE1E1E1">
 		<s:layout>

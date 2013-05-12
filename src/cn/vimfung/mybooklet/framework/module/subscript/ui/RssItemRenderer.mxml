@@ -89,6 +89,9 @@
 						}
 					}
 				});
+				
+				//防止相应父级点击事件，导致选中状态无法变更。
+				event.stopImmediatePropagation();
 			}
 			
 			/**
@@ -157,8 +160,10 @@
 		</s:fill>
 	</s:Rect>
 	<s:VGroup width="100%" height="100%" paddingBottom="3" paddingTop="3" paddingLeft="3" paddingRight="3" verticalAlign="middle" horizontalAlign="center">
-		<s:Image id="iconImage" fillMode="scale" width="100%" />
-		<s:Label id="titleLabel" />
+		<mx:HBox width="100%" height="60" verticalAlign="middle" horizontalAlign="center">
+			<s:Image id="iconImage" fillMode="scale" width="100%" maxHeight="60" />
+		</mx:HBox>
+		<s:Label id="titleLabel" maxDisplayedLines="1" lineBreak="toFit" width="100%" textAlign="center" />
 		<s:RichText id="descRichText" width="100%" height="100%" fontSize="12" lineBreak="toFit"
 					maxDisplayedLines="3" verticalAlign="top" color="0x999999" textAlign="center" />
 		<s:HGroup verticalAlign="middle">

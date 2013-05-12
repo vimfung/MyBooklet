@@ -10,6 +10,7 @@
 	</fx:Declarations>
 	<fx:Script>
 		<![CDATA[
+			import cn.vimfung.common.db.SqliteDatabaseEvent;
 			import cn.vimfung.common.db.SqliteDatabaseToken;
 			import cn.vimfung.mybooklet.framework.GNFacade;
 			import cn.vimfung.mybooklet.framework.module.setting.mediator.BackupOrRestorePanelMediator;
@@ -17,6 +18,7 @@
 			
 			import mx.controls.Alert;
 			import mx.controls.Menu;
+			import mx.core.IFlexDisplayObject;
 			import mx.events.CloseEvent;
 			import mx.events.FlexEvent;
 			import mx.events.MenuEvent;
@@ -28,6 +30,7 @@
 			private var _mediator:BackupOrRestorePanelMediator;
 			private var _restoreMenu:Menu;
 			private var _isShowRestoreMenu:Boolean;
+			private var _tipsPanel:IFlexDisplayObject;
 			
 			/**
 			 * 备份按钮事件 
@@ -259,11 +262,55 @@
 				_gnFacade.postNotification(notif);
 			}
 			
+			/**
+			 * 清空订阅缓存按钮点击
+			 * 
+			 * @param event 事件
+			 * */
+			protected function clearRssCacheClickHandler(event:MouseEvent):void
+			{
+				_tipsPanel = _gnFacade.popup(TipsPanel, true);
+				(_tipsPanel as TipsPanel).contentLabel.text = "正在清除,请稍后...";
+				
+				var token:SqliteDatabaseToken = _gnFacade.documentDatabase.createCommandToken("DELETE FROM rss_items");
+				token.addEventListener(SqliteDatabaseEvent.RESULT, clearRssCacheResultHandler);
+				token.addEventListener(SqliteDatabaseEvent.ERROR, clearRssCacheErrorHandler);
+				token.start();
+
+			}
+			
+			/**
+			 * 清除订阅缓存完成
+			 * 
+			 * @param event 事件
+			 * */
+			private function clearRssCacheResultHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, clearRssCacheResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, clearRssCacheResultHandler);
+				
+				_gnFacade.removePopup(_tipsPanel);
+				_gnFacade.alert("清除缓存完毕!");
+			}
+			
+			/**
+			 * 清除订阅缓存失败
+			 * 
+			 * @param event 事件
+			 * */
+			private function clearRssCacheErrorHandler(event:SqliteDatabaseEvent):void
+			{
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, clearRssCacheResultHandler);
+				event.target.removeEventListener(SqliteDatabaseEvent.RESULT, clearRssCacheResultHandler);
+				
+				_gnFacade.alert("清除缓存失败!" + event.error.message);
+			}
 		]]>
 	</fx:Script>
 	<s:VGroup width="100%" height="100%" fontFamily="Lantingqianhei">
+		<s:Label text="版本更新"/>
 		<s:HGroup verticalAlign="middle">
-			<s:Label text="版本更新检测"/>
+			<s:Label text="通知:" />
 			<s:DropDownList id="flagDropDownList" change="flagDropDownListChangeHandler(event)">
 				<s:dataProvider>
 					<s:ArrayCollection>
@@ -279,6 +326,13 @@
 			<s:Spacer width="15" />
 			<s:Button label="检测新版本" click="checkVerClickHandler(event)" />
 		</s:HGroup>
+		<s:Line width="100%">
+			<s:stroke>
+				<s:SolidColorStroke color="0xE1E1E1" weight="1" />
+			</s:stroke>
+		</s:Line>
+		<s:Label text="我的订阅" />
+		<s:Button label="清空本地缓存" click="clearRssCacheClickHandler(event)" />
 		<s:Line width="100%">
 			<s:stroke>
 				<s:SolidColorStroke color="0xE1E1E1" weight="1" />

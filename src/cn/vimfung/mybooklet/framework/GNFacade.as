@@ -53,6 +53,11 @@ package cn.vimfung.mybooklet.framework
 		public static const LAST_CHECK_VER_TIME:String = "LAST_CHECK_VER_TIME";
 		
 		/**
+		 * 更新版本地址 
+		 */
+		public static const UPDATE_URL:String = "http://mybooklet-mybooklet.stor.sinaapp.com/upgrade.xml";
+		
+		/**
 		 * 获取共享前置器实例 
 		 * @return 前置器对象
 		 * 

@@ -33,7 +33,7 @@ package cn.vimfung.mybooklet.framework.command
 		public override function execute(notification:INotification):void
 		{
 			_updater = new ApplicationUpdaterUI();
-			_updater.updateURL = "http://wap.appgo.cn/mybooklet-update.xml";
+			_updater.updateURL = GNFacade.UPDATE_URL;
 			if (notification.getBody() != null)
 			{
 				_updater.isCheckForUpdateVisible = notification.getBody();
